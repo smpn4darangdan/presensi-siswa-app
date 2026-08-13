@@ -61,7 +61,6 @@ function handleLogin(e) {
     }
   } else {
     // LOGIN GURU TANPA PASSWORD
-    // Cek berdasarkan NIP atau Username (nama kecil tanpa spasi)
     const foundGuru = listGuru.find(g => 
       (g.nip && g.nip.toLowerCase() === inputUser) || 
       (g.username && g.username.toLowerCase() === inputUser) ||
@@ -138,7 +137,6 @@ function handleGuruScan(e) {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-  // Simpan Presensi
   const attendanceRecord = {
     id: Date.now().toString(),
     nis: siswa.nis,
@@ -196,7 +194,7 @@ function loadGuruAttendanceHistory() {
 }
 
 // ==========================================
-// 3. LOGIKA DASHBOARD ADMIN
+// 3. LOGIKA DASHBOARD ADMIN & CRUD
 // ==========================================
 function switchAdminTab(tab) {
   document.getElementById("adminTabScan").classList.add("hidden");
@@ -248,7 +246,8 @@ function renderAdminTables() {
       <td class="p-3"><span class="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-bold">${s.kelas}</span></td>
       <td class="p-3 text-xs font-mono">${s.no_hp_ortu || '-'}</td>
       <td class="p-3 text-center space-x-1">
-        <button onclick="deleteSiswa('${s.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded">🗑️ Hapus</button>
+        <button onclick="editSiswa('${s.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">✏️ Edit</button>
+        <button onclick="deleteSiswa('${s.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">🗑️ Hapus</button>
       </td>
     </tr>
   `).join('');
@@ -260,57 +259,121 @@ function renderAdminTables() {
       <td class="p-3 font-mono font-bold text-slate-700">${g.nip || '- Non ASN -'}</td>
       <td class="p-3 font-medium text-slate-800">${g.nama}</td>
       <td class="p-3 font-mono text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-fit">${g.username}</td>
-      <td class="p-3 text-center">
-        <button onclick="deleteGuru('${g.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded">🗑️ Hapus</button>
+      <td class="p-3 text-center space-x-1">
+        <button onclick="editGuru('${g.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">✏️ Edit</button>
+        <button onclick="deleteGuru('${g.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">🗑️ Hapus</button>
       </td>
     </tr>
   `).join('');
 }
 
-// CRUD SISWA & GURU
-function openModalSiswa() { document.getElementById('modalSiswa').classList.remove('hidden'); }
-function closeModalSiswa() { document.getElementById('modalSiswa').classList.add('hidden'); }
+// --- CRUD SISWA ---
+function openModalSiswa() { 
+  document.getElementById('siswaId').value = "";
+  document.getElementById('siswaForm').reset();
+  document.getElementById('modalSiswaTitle').innerText = "Tambah Data Siswa";
+  document.getElementById('modalSiswa').classList.remove('hidden'); 
+}
+
+function closeModalSiswa() { 
+  document.getElementById('modalSiswa').classList.add('hidden'); 
+}
+
+function editSiswa(id) {
+  const siswa = listSiswa.find(s => s.id === id);
+  if (!siswa) return;
+  document.getElementById('siswaId').value = siswa.id;
+  document.getElementById('siswaNis').value = siswa.nis;
+  document.getElementById('siswaNama').value = siswa.nama;
+  document.getElementById('siswaKelas').value = siswa.kelas;
+  document.getElementById('siswaNoHp').value = siswa.no_hp_ortu || "";
+  document.getElementById('modalSiswaTitle').innerText = "Edit Data Siswa";
+  document.getElementById('modalSiswa').classList.remove('hidden');
+}
+
 function saveSiswa(e) {
   e.preventDefault();
-  const newSiswa = {
-    id: Date.now().toString(),
-    nis: document.getElementById('siswaNis').value,
-    nama: document.getElementById('siswaNama').value,
-    kelas: document.getElementById('siswaKelas').value,
-    no_hp_ortu: document.getElementById('siswaNoHp').value
-  };
-  listSiswa.push(newSiswa);
+  const id = document.getElementById('siswaId').value;
+  const nis = document.getElementById('siswaNis').value;
+  const nama = document.getElementById('siswaNama').value;
+  const kelas = document.getElementById('siswaKelas').value;
+  const no_hp_ortu = document.getElementById('siswaNoHp').value;
+
+  if (id) {
+    // Mode Update / Edit
+    const index = listSiswa.findIndex(s => s.id === id);
+    if (index !== -1) {
+      listSiswa[index] = { id, nis, nama, kelas, no_hp_ortu };
+    }
+  } else {
+    // Mode Tambah Baru
+    listSiswa.push({ id: Date.now().toString(), nis, nama, kelas, no_hp_ortu });
+  }
+
   localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
   closeModalSiswa();
   renderAdminTables();
 }
+
 function deleteSiswa(id) {
-  listSiswa = listSiswa.filter(s => s.id !== id);
-  localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
-  renderAdminTables();
+  if (confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
+    listSiswa = listSiswa.filter(s => s.id !== id);
+    localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
+    renderAdminTables();
+  }
 }
 
-function openModalGuru() { document.getElementById('modalGuru').classList.remove('hidden'); }
-function closeModalGuru() { document.getElementById('modalGuru').classList.add('hidden'); }
+// --- CRUD GURU ---
+function openModalGuru() { 
+  document.getElementById('guruId').value = "";
+  document.getElementById('guruForm').reset();
+  document.getElementById('modalGuruTitle').innerText = "Tambah Data Guru";
+  document.getElementById('modalGuru').classList.remove('hidden'); 
+}
+
+function closeModalGuru() { 
+  document.getElementById('modalGuru').classList.add('hidden'); 
+}
+
+function editGuru(id) {
+  const guru = listGuru.find(g => g.id === id);
+  if (!guru) return;
+  document.getElementById('guruId').value = guru.id;
+  document.getElementById('guruNip').value = guru.nip || "";
+  document.getElementById('guruNama').value = guru.nama;
+  document.getElementById('modalGuruTitle').innerText = "Edit Data Guru";
+  document.getElementById('modalGuru').classList.remove('hidden');
+}
+
 function saveGuru(e) {
   e.preventDefault();
+  const id = document.getElementById('guruId').value;
+  const nip = document.getElementById('guruNip').value;
   const nama = document.getElementById('guruNama').value;
   const usernameClean = nama.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const newGuru = {
-    id: Date.now().toString(),
-    nip: document.getElementById('guruNip').value,
-    nama: nama,
-    username: usernameClean
-  };
-  listGuru.push(newGuru);
+
+  if (id) {
+    // Mode Update / Edit
+    const index = listGuru.findIndex(g => g.id === id);
+    if (index !== -1) {
+      listGuru[index] = { id, nip, nama, username: usernameClean };
+    }
+  } else {
+    // Mode Tambah Baru
+    listGuru.push({ id: Date.now().toString(), nip, nama, username: usernameClean });
+  }
+
   localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
   closeModalGuru();
   renderAdminTables();
 }
+
 function deleteGuru(id) {
-  listGuru = listGuru.filter(g => g.id !== id);
-  localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
-  renderAdminTables();
+  if (confirm("Apakah Anda yakin ingin menghapus data guru ini?")) {
+    listGuru = listGuru.filter(g => g.id !== id);
+    localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
+    renderAdminTables();
+  }
 }
 
 // EXCEL IMPORT & EXPORT
