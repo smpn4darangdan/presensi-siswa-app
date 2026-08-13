@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presensi Siswa - Admin Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  
   <!-- Library Kamera QR Code -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <!-- Library Tambahan untuk Generate QR & Cetak PDF Kartu Tagname A3 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
@@ -151,33 +156,114 @@
       </div>
 
       <!-- TAB 2: MASTER DATA SISWA -->
-      <div id="tabSiswa" class="tab-content hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-lg font-bold text-slate-900">Daftar Siswa Terdaftar</h2>
+      <div id="tabSiswa" class="tab-content hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">👨‍🎓 Master Data Siswa</h2>
+            <p class="text-xs text-slate-500">Kelola data siswa, cetak kartu tagname QR, dan notifikasi ortu</p>
+          </div>
+          
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openModalSiswa()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1">
+              ➕ Tambah Siswa
+            </button>
+            <button onclick="openModalWA()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1">
+              ⚙️ Nomor WA Pengirim
+            </button>
+            <button onclick="downloadQRAll()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition">
+              📇 Download QR (Semua A3)
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Kelas & Tabel -->
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Filter Kelas:</label>
+            <select id="filterKelas" onchange="filterSiswaByKelas()" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">-- Semua Kelas --</option>
+              <option value="7A">Kelas 7A</option>
+              <option value="7B">Kelas 7B</option>
+              <option value="8A">Kelas 8A</option>
+              <option value="9A">Kelas 9A</option>
+            </select>
+            <button onclick="downloadQRPerKelas()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow transition">
+              📇 Download QR Kelas Ini
+            </button>
+          </div>
           <button onclick="loadStudents()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-md font-medium text-slate-600 transition">
-            🔄 Reload Data Siswa
+            🔄 Reload Data
           </button>
         </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
             <thead>
               <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase tracking-wider">
                 <th class="p-3">NIS</th>
-                <th class="p-3">NISN</th>
                 <th class="p-3">Nama Siswa</th>
-                <th class="p-3">L/P</th>
-                <th class="p-3">Kode QR</th>
-                <th class="p-3">Status Siswa</th>
+                <th class="p-3">Kelas</th>
+                <th class="p-3">No. HP Ortua</th>
+                <th class="p-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody id="studentsTable" class="divide-y divide-slate-100">
-              <tr><td colspan="6" class="p-4 text-center text-slate-400">Memuat data siswa...</td></tr>
+              <tr><td colspan="5" class="p-4 text-center text-slate-400">Memuat data siswa...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
     </main>
+  </div>
+
+  <!-- MODAL FORM SISWA (TAMBAH / EDIT) -->
+  <div id="modalSiswa" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+      <h3 id="modalSiswaTitle" class="text-lg font-bold text-slate-900">Tambah Data Siswa</h3>
+      <form id="siswaForm" onsubmit="saveSiswa(event)" class="space-y-3">
+        <input type="hidden" id="siswaId">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">NIS / ID Siswa</label>
+          <input type="text" id="siswaNis" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap</label>
+          <input type="text" id="siswaNama" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Kelas</label>
+          <input type="text" id="siswaKelas" placeholder="Contoh: 7A" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">No. WhatsApp Ortu (Format: 628xxx)</label>
+          <input type="text" id="siswaNoHp" placeholder="628123456789" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModalSiswa()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL NO. WA PENGIRIM UTAMA SEKOLAH -->
+  <div id="modalWA" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold text-slate-900">⚙️ Pengaturan WA Pengirim Sekolah</h3>
+      <p class="text-xs text-slate-500">Nomor ini digunakan sebagai identitas utama untuk pengiriman notifikasi presensi otomatis ke orang tua.</p>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor WA Utama Sekolah</label>
+          <input type="text" id="waSenderNumber" placeholder="6281299887766" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono">
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModalWA()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
+          <button type="button" onclick="saveWASender()" class="px-4 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow">Simpan Nomor</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/js/app.js"></script>

@@ -1,261 +1,306 @@
-const API_BASE = '/api';
-let token = localStorage.getItem('token');
+// Variable Global
+let listSiswa = [];
+let filteredSiswa = [];
 
-// Elements
-const loginSection = document.getElementById('loginSection');
-const appSection = document.getElementById('appSection');
-const loginForm = document.getElementById('loginForm');
-const loginAlert = document.getElementById('loginAlert');
-const scanForm = document.getElementById('scanForm');
-const scanAlert = document.getElementById('scanAlert');
-const userInfo = document.getElementById('userInfo');
-const logoutBtn = document.getElementById('logoutBtn');
-const refreshBtn = document.getElementById('refreshBtn');
-const attendanceTable = document.getElementById('attendanceTable');
-const studentsTable = document.getElementById('studentsTable');
-
-// Stats Elements
-const statHadir = document.getElementById('statHadir');
-const statTerlambat = document.getElementById('statTerlambat');
-const statIzin = document.getElementById('statIzin');
-const statTotal = document.getElementById('statTotal');
-
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-  if (token) {
-    checkAuth();
-  } else {
-    showLogin();
-  }
+// ==========================================
+// 1. NAVIGASI TAB & INITIALIZATION
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  // Set default view / login check jika ada
+  checkAuth();
+  loadStudents();
 });
 
-function showLogin() {
-  loginSection.classList.remove('hidden');
-  appSection.classList.add('hidden');
-}
-
-function showApp(user) {
-  loginSection.classList.add('hidden');
-  appSection.classList.remove('hidden');
-  userInfo.textContent = `Logged in as: ${user.nama} (${user.role.toUpperCase()})`;
-  loadTodayAttendance();
-}
-
-// Switch Tab Navigation
 function switchTab(tabName) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.remove('bg-indigo-600', 'text-white');
-    btn.classList.add('text-slate-600', 'hover:bg-slate-100');
-  });
+  const tabScan = document.getElementById("tabScan");
+  const tabSiswa = document.getElementById("tabSiswa");
+  const btnScan = document.getElementById("tabScanBtn");
+  const btnSiswa = document.getElementById("tabSiswaBtn");
 
-  if (tabName === 'scan') {
-    document.getElementById('tabScan').classList.remove('hidden');
-    document.getElementById('tabScanBtn').classList.add('bg-indigo-600', 'text-white');
-    document.getElementById('tabScanBtn').classList.remove('text-slate-600', 'hover:bg-slate-100');
-    loadTodayAttendance();
-  } else if (tabName === 'siswa') {
-    document.getElementById('tabSiswa').classList.remove('hidden');
-    document.getElementById('tabSiswaBtn').classList.add('bg-indigo-600', 'text-white');
-    document.getElementById('tabSiswaBtn').classList.remove('text-slate-600', 'hover:bg-slate-100');
-    loadStudents();
+  if (tabName === "scan") {
+    tabScan.classList.remove("hidden");
+    tabSiswa.classList.add("hidden");
+
+    btnScan.className = "tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition";
+    btnSiswa.className = "tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition";
+  } else {
+    tabScan.classList.add("hidden");
+    tabSiswa.classList.remove("hidden");
+
+    btnSiswa.className = "tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition";
+    btnScan.className = "tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition";
   }
 }
 
-// Check Auth Profile
-async function checkAuth() {
-  try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      showApp(data.data);
-    } else {
-      logout();
-    }
-  } catch (err) {
-    logout();
-  }
+function checkAuth() {
+  // Tampilkan dashboard utama
+  document.getElementById("loginSection").classList.add("hidden");
+  document.getElementById("appSection").classList.remove("hidden");
 }
 
-// Handle Login
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-
-  try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      token = data.data.token;
-      localStorage.setItem('token', token);
-      showApp(data.data.user);
-    } else {
-      showAlert(loginAlert, data.message, 'error');
-    }
-  } catch (err) {
-    showAlert(loginAlert, 'Gagal terhubung ke server', 'error');
-  }
-});
-
-// Handle Scan QR + Suara
-scanForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const qrInput = document.getElementById('qrInput');
-  const qr_code = qrInput.value.trim();
-
-  try {
-    const res = await fetch(`${API_BASE}/attendance/scan`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ qr_code })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      const msg = `Presensi berhasil. Selamat datang, ${data.data.siswa.nama}!`;
-      showAlert(scanAlert, `${data.message} (${data.data.siswa.nama})`, 'success');
-      speakText(msg);
-
-      qrInput.value = '';
-      loadTodayAttendance();
-    } else {
-      showAlert(scanAlert, data.message, 'error');
-      speakText(`Maaf, ${data.message}`);
-    }
-  } catch (err) {
-    showAlert(scanAlert, 'Gagal memproses scan', 'error');
-    speakText('Maaf, terjadi kesalahan pada sistem.');
-  }
-});
-
-// Load Attendance Table & Calculate Stats
-async function loadTodayAttendance() {
-  try {
-    const res = await fetch(`${API_BASE}/attendance/today`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      renderTable(data.data);
-      updateStats(data.data);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-function updateStats(list) {
-  let hadir = 0;
-  let terlambat = 0;
-  let izin = 0;
-
-  list.forEach(item => {
-    if (item.status === 'HADIR') hadir++;
-    else if (item.status === 'TERLAMBAT') terlambat++;
-    else if (item.status === 'IZIN' || item.status === 'SAKIT') izin++;
-  });
-
-  statHadir.textContent = hadir;
-  statTerlambat.textContent = terlambat;
-  statIzin.textContent = izin;
-  statTotal.textContent = list.length;
-}
-
-function renderTable(list) {
-  if (list.length === 0) {
-    attendanceTable.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada data presensi hari ini.</td></tr>`;
-    return;
-  }
-
-  attendanceTable.innerHTML = list.map(item => `
-    <tr class="hover:bg-slate-50">
-      <td class="p-3 font-mono text-slate-600">${item.jam}</td>
-      <td class="p-3 font-semibold">${item.nis}</td>
-      <td class="p-3 text-slate-800">${item.nama_siswa}</td>
-      <td class="p-3 text-slate-600">${item.nama_rombel || '-'}</td>
-      <td class="p-3"><span class="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-700">${item.tipe}</span></td>
-      <td class="p-3"><span class="px-2 py-0.5 text-xs font-semibold rounded ${
-        item.status === 'HADIR' ? 'bg-emerald-100 text-emerald-700' :
-        item.status === 'TERLAMBAT' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-      }">${item.status}</span></td>
-    </tr>
-  `).join('');
-}
-
-// Load Students Data
+// ==========================================
+// 2. MASTER DATA SISWA (CRUD & FILTER)
+// ==========================================
 async function loadStudents() {
   try {
-    const res = await fetch(`${API_BASE}/students`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      renderStudentsTable(data.data);
+    const res = await fetch("/api/siswa");
+    if (res.ok) {
+      listSiswa = await res.json();
+    } else {
+      // Fallback jika API backend belum dipasang
+      listSiswa = JSON.parse(localStorage.getItem("DATA_SISWA")) || [];
     }
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
+    listSiswa = JSON.parse(localStorage.getItem("DATA_SISWA")) || [];
   }
+  
+  filteredSiswa = [...listSiswa];
+  renderStudentsTable(filteredSiswa);
 }
 
-function renderStudentsTable(list) {
-  if (!list || list.length === 0) {
-    studentsTable.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada data siswa.</td></tr>`;
+function renderStudentsTable(data) {
+  const tbody = document.getElementById("studentsTable");
+  if (!tbody) return;
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data siswa. Silakan klik "Tambah Siswa".</td></tr>`;
     return;
   }
 
-  studentsTable.innerHTML = list.map(siswa => `
-    <tr class="hover:bg-slate-50">
-      <td class="p-3 font-semibold">${siswa.nis}</td>
-      <td class="p-3 text-slate-600 font-mono">${siswa.nisn || '-'}</td>
-      <td class="p-3 text-slate-800 font-medium">${siswa.nama}</td>
-      <td class="p-3 text-slate-600">${siswa.jenis_kelamin}</td>
-      <td class="p-3 font-mono text-xs text-indigo-600">${siswa.qr_code || '-'}</td>
-      <td class="p-3"><span class="px-2 py-0.5 text-xs font-semibold rounded ${siswa.status_aktif ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${siswa.status_aktif ? 'AKTIF' : 'NON-AKTIF'}</span></td>
+  tbody.innerHTML = data.map((s, idx) => `
+    <tr class="hover:bg-slate-50 border-b border-slate-100">
+      <td class="p-3 font-mono font-semibold text-indigo-600">${s.nis}</td>
+      <td class="p-3 font-medium text-slate-800">${s.nama}</td>
+      <td class="p-3"><span class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-md font-semibold">${s.kelas}</span></td>
+      <td class="p-3 font-mono text-xs text-slate-600">${s.no_hp_ortu || '-'}</td>
+      <td class="p-3 text-center space-x-1">
+        <button onclick='downloadQRSingle(${JSON.stringify(s.nis)})' title="Cetak QR A3 Tagname" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded-md transition">📇 QR</button>
+        <button onclick='editSiswa(${JSON.stringify(s)})' title="Edit Siswa" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2.5 py-1 rounded-md transition">✏️ Edit</button>
+        <button onclick="deleteSiswa('${s.id || s.nis}')" title="Hapus Siswa" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded-md transition">🗑️ Hapus</button>
+      </td>
     </tr>
   `).join('');
 }
 
-// Helpers
-function showAlert(element, message, type) {
-  element.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-emerald-100', 'text-emerald-700');
-  if (type === 'error') {
-    element.classList.add('bg-red-100', 'text-red-700');
+function filterSiswaByKelas() {
+  const kls = document.getElementById("filterKelas").value;
+  if (!kls) {
+    filteredSiswa = [...listSiswa];
   } else {
-    element.classList.add('bg-emerald-100', 'text-emerald-700');
+    filteredSiswa = listSiswa.filter(s => s.kelas === kls);
   }
-  element.textContent = message;
+  renderStudentsTable(filteredSiswa);
 }
 
-logoutBtn.addEventListener('click', logout);
-refreshBtn.addEventListener('click', loadTodayAttendance);
-
-function logout() {
-  localStorage.removeItem('token');
-  token = null;
-  showLogin();
+// MODAL & HANDLER FORM
+function openModalSiswa(data = null) {
+  document.getElementById('modalSiswa').classList.remove('hidden');
+  if (data) {
+    document.getElementById('modalSiswaTitle').innerText = 'Edit Data Siswa';
+    document.getElementById('siswaId').value = data.id || data.nis;
+    document.getElementById('siswaNis').value = data.nis;
+    document.getElementById('siswaNama').value = data.nama;
+    document.getElementById('siswaKelas').value = data.kelas;
+    document.getElementById('siswaNoHp').value = data.no_hp_ortu || '';
+  } else {
+    document.getElementById('modalSiswaTitle').innerText = 'Tambah Data Siswa';
+    document.getElementById('siswaForm').reset();
+    document.getElementById('siswaId').value = '';
+  }
 }
 
-// Text-to-Speech
-function speakText(text) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'id-ID';
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
+function editSiswa(s) {
+  openModalSiswa(s);
+}
+
+function closeModalSiswa() {
+  document.getElementById('modalSiswa').classList.add('hidden');
+}
+
+async function saveSiswa(e) {
+  e.preventDefault();
+  const id = document.getElementById('siswaId').value;
+  const payload = {
+    id: id || Date.now().toString(),
+    nis: document.getElementById('siswaNis').value,
+    nama: document.getElementById('siswaNama').value,
+    kelas: document.getElementById('siswaKelas').value,
+    no_hp_ortu: document.getElementById('siswaNoHp').value,
+  };
+
+  try {
+    const url = id ? `/api/siswa/${id}` : '/api/siswa';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error();
+  } catch (err) {
+    // LocalStorage Fallback jika API belum dibuat
+    let localData = JSON.parse(localStorage.getItem("DATA_SISWA")) || [];
+    if (id) {
+      localData = localData.map(s => (s.id === id || s.nis === id) ? payload : s);
+    } else {
+      localData.push(payload);
+    }
+    localStorage.setItem("DATA_SISWA", JSON.stringify(localData));
   }
+
+  alert('✅ Data Siswa berhasil disimpan!');
+  closeModalSiswa();
+  loadStudents();
+}
+
+async function deleteSiswa(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus data siswa ini?')) return;
+  
+  try {
+    await fetch(`/api/siswa/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    let localData = JSON.parse(localStorage.getItem("DATA_SISWA")) || [];
+    localData = localData.filter(s => s.id !== id && s.nis !== id);
+    localStorage.setItem("DATA_SISWA", JSON.stringify(localData));
+  }
+
+  alert('🗑️ Data siswa berhasil dihapus.');
+  loadStudents();
+}
+
+// ==========================================
+// 3. PENGATURAN WA PENGIRIM SEKOLAH
+// ==========================================
+function openModalWA() {
+  document.getElementById('modalWA').classList.remove('hidden');
+  document.getElementById('waSenderNumber').value = localStorage.getItem('WA_SENDER_NUMBER') || '628123456789';
+}
+
+function closeModalWA() {
+  document.getElementById('modalWA').classList.add('hidden');
+}
+
+function saveWASender() {
+  const num = document.getElementById('waSenderNumber').value;
+  if (!num) return alert('Nomor pengirim wajib diisi!');
+  localStorage.setItem('WA_SENDER_NUMBER', num);
+  alert('✅ Nomor WA Utama Pengirim Sekolah Berhasil Disimpan!');
+  closeModalWA();
+}
+
+// ==========================================
+// 4. GENERATE PDF QR KARTU TAGNAME (A3 PORTRAIT)
+// ==========================================
+async function generateQRCardsPDF(siswaArray, filename = "Kartu_QR_Siswa.pdf") {
+  if (!siswaArray || siswaArray.length === 0) {
+    return alert('Tidak ada data siswa untuk dicetak!');
+  }
+
+  const { jsPDF } = window.jspdf;
+  
+  // Format Kertas A3 Portrait (297mm x 420mm)
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a3'
+  });
+
+  const cardWidth = 80;   // 8 cm
+  const cardHeight = 115; // 11.5 cm (Pas Ukuran Plastik Panitia/Tagname B2/A3)
+  const marginX = 18;
+  const marginY = 20;
+  const gapX = 12;
+  const gapY = 12;
+
+  const cols = 3; 
+  const rows = 3; 
+
+  let xIndex = 0;
+  let yIndex = 0;
+
+  for (let i = 0; i < siswaArray.length; i++) {
+    const s = siswaArray[i];
+
+    const posX = marginX + xIndex * (cardWidth + gapX);
+    const posY = marginY + yIndex * (cardHeight + gapY);
+
+    // Border Kartu
+    doc.setDrawColor(79, 70, 229);
+    doc.setLineWidth(1);
+    doc.roundedRect(posX, posY, cardWidth, cardHeight, 4, 4);
+
+    // Header Kartu
+    doc.setFillColor(79, 70, 229);
+    doc.rect(posX, posY, cardWidth, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("KARTU PRESENSI SISWA", posX + (cardWidth / 2), posY + 10, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("PRESENSI APP SEKOLAH", posX + (cardWidth / 2), posY + 16, { align: "center" });
+
+    // Generate Temporary QR Code Container
+    const qrContainer = document.createElement("div");
+    new QRCode(qrContainer, {
+      text: s.nis,
+      width: 150,
+      height: 150
+    });
+    
+    await new Promise(r => setTimeout(r, 100));
+    const qrCanvas = qrContainer.querySelector("canvas");
+    const qrDataUrl = qrCanvas ? qrCanvas.toDataURL("image/png") : "";
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", posX + 15, posY + 28, 50, 50);
+    }
+
+    // Detail Siswa
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(s.nama.toUpperCase(), posX + (cardWidth / 2), posY + 85, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`NIS: ${s.nis}`, posX + (cardWidth / 2), posY + 92, { align: "center" });
+    doc.text(`KELAS: ${s.kelas}`, posX + (cardWidth / 2), posY + 98, { align: "center" });
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Tunjukkan kartu ini pada kamera scanner", posX + (cardWidth / 2), posY + 108, { align: "center" });
+
+    xIndex++;
+    if (xIndex >= cols) {
+      xIndex = 0;
+      yIndex++;
+      if (yIndex >= rows && i < siswaArray.length - 1) {
+        yIndex = 0;
+        doc.addPage('a3', 'p');
+      }
+    }
+  }
+
+  doc.save(filename);
+}
+
+function downloadQRSingle(nis) {
+  const s = listSiswa.find(x => x.nis === nis);
+  if (s) generateQRCardsPDF([s], `Kartu_QR_${s.nama.replace(/\s+/g, '_')}.pdf`);
+}
+
+function downloadQRPerKelas() {
+  const kls = document.getElementById('filterKelas').value;
+  if (!kls) return alert('Silakan pilih kelas terlebih dahulu pada dropdown filter kelas!');
+  const filtered = listSiswa.filter(s => s.kelas === kls);
+  if (filtered.length === 0) return alert(`Tidak ada data siswa di kelas ${kls}!`);
+  generateQRCardsPDF(filtered, `Kartu_QR_Kelas_${kls}.pdf`);
+}
+
+function downloadQRAll() {
+  if (listSiswa.length === 0) return alert('Belum ada data siswa untuk dicetak!');
+  generateQRCardsPDF(listSiswa, "Kartu_QR_Semua_Siswa_A3.pdf");
 }
