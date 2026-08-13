@@ -12,6 +12,9 @@
   <!-- Library Tambahan untuk Generate QR & Cetak PDF Kartu Tagname A3 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Library SheetJS untuk Import & Export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
@@ -165,11 +168,18 @@
           </div>
           
           <div class="flex flex-wrap gap-2">
+            <button onclick="downloadTemplateExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition border border-slate-300 flex items-center gap-1">
+              📥 Template Excel
+            </button>
+            <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition cursor-pointer flex items-center gap-1">
+              📤 Import Excel
+              <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="importSiswaExcel(event)" class="hidden">
+            </label>
             <button onclick="openModalSiswa()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1">
               ➕ Tambah Siswa
             </button>
-            <button onclick="openModalWA()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1">
-              ⚙️ Nomor WA Pengirim
+            <button onclick="openModalWA()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1">
+              ⚙️ No. WA Pengirim
             </button>
             <button onclick="downloadQRAll()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition">
               📇 Download QR (Semua A3)
