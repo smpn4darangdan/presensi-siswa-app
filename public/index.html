@@ -6,10 +6,8 @@
   <title>Presensi Siswa - Dashboard App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Library Kamera QR Code -->
+  <!-- Library QR Code & Print PDF -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  
-  <!-- Library Generate QR & Cetak PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -17,6 +15,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+  <!-- Container Rahasia untuk Render QR versi PDF -->
+  <div id="qrPrintContainer" class="hidden"></div>
 
   <!-- ================= SECTION LOGIN ================= -->
   <div id="loginSection" class="flex items-center justify-center min-h-screen p-4">
@@ -26,7 +27,6 @@
         <p class="text-sm text-slate-500 mt-1">Masuk sebagai Admin atau Guru</p>
       </div>
 
-      <!-- Tab Switch Login Role -->
       <div class="flex border-b border-slate-200 mb-6 gap-2">
         <button type="button" id="loginRoleGuruBtn" onclick="switchLoginRole('guru')" class="w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600">
           👨‍🏫 Masuk Guru (Tanpa Password)
@@ -60,7 +60,6 @@
 
   <!-- ================= SECTION MAIN DASHBOARD ================= -->
   <div id="appSection" class="hidden min-h-screen flex flex-col">
-    <!-- Header / Navbar -->
     <header class="bg-indigo-700 text-white shadow-md">
       <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div>
@@ -75,9 +74,8 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
 
-      <!-- ================= TAMPILAN KHUSUS GURU ================= -->
+      <!-- ================= DASHBOARD GURU ================= -->
       <div id="guruView" class="hidden space-y-6">
-        <!-- Selector Kelas Guru -->
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-base font-bold text-slate-900">📌 Pilih Kelas Presensi Hari Ini</h2>
@@ -92,10 +90,7 @@
           </select>
         </div>
 
-        <!-- Grid Scan & Tabel Samping (Siswa Berhasil Absen oleh Guru Ini) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          <!-- Panel Kamera Scan -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <h3 class="text-base font-bold text-slate-900 flex items-center justify-between">
               <span>📷 Kamera Scan QR Presensi</span>
@@ -117,7 +112,6 @@
             </form>
           </div>
 
-          <!-- Tabel Samping: Daftar Siswa Berhasil Absen -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
             <div class="flex justify-between items-center mb-4">
               <div>
@@ -144,14 +138,11 @@
               </table>
             </div>
           </div>
-
         </div>
       </div>
 
-
-      <!-- ================= TAMPILAN KHUSUS ADMIN ================= -->
+      <!-- ================= DASHBOARD ADMIN ================= -->
       <div id="adminView" class="hidden space-y-6">
-        <!-- Navigation Tabs Admin -->
         <div class="flex border-b border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-2">
           <button id="tabScanBtn" onclick="switchAdminTab('scan')" class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition">
             📷 Terminal Scan Utama
@@ -283,7 +274,7 @@
     </main>
   </div>
 
-  <!-- MODAL FORM SISWA -->
+  <!-- MODAL SISWA -->
   <div id="modalSiswa" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
       <h3 id="modalSiswaTitle" class="text-lg font-bold text-slate-900">Tambah Data Siswa</h3>
@@ -313,7 +304,7 @@
     </div>
   </div>
 
-  <!-- MODAL FORM GURU -->
+  <!-- MODAL GURU -->
   <div id="modalGuru" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
       <h3 id="modalGuruTitle" class="text-lg font-bold text-slate-900">Tambah Data Guru</h3>
@@ -337,7 +328,6 @@
 
   <script src="/js/app.js"></script>
 
-  <!-- Script QR Scanner Camera Manager -->
   <script>
     let qrGuru = null, qrAdmin = null;
     let camGuruActive = false, camAdminActive = false;

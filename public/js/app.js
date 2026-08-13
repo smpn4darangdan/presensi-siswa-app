@@ -226,7 +226,7 @@ function renderAdminTables() {
     `).join('');
   }
 
-  // Render Tabel Master Siswa (DENGAN TOMBOL QR PER SISWA, EDIT & HAPUS)
+  // Render Tabel Master Siswa dengan Tombol QR Per Siswa
   const tbodySiswa = document.getElementById("studentsTable");
   tbodySiswa.innerHTML = listSiswa.map(s => `
     <tr class="hover:bg-slate-50 border-b border-slate-100">
@@ -258,71 +258,184 @@ function renderAdminTables() {
 }
 
 // ==========================================
-// 4. DOWNLOAD QR CODE PER SISWA (SINGLE)
+// 4. KARTU PRESENSI GENERATOR (STANDAR KARTU ID 85.6mm x 53.9mm)
 // ==========================================
+
+// Fungsi Bantuan Pembuat QR Data URL
+function generateQRCodeDataURL(text) {
+  return new Promise((resolve) => {
+    let container = document.getElementById("qrPrintContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "qrPrintContainer";
+      container.style.display = "none";
+      document.body.appendChild(container);
+    }
+    container.innerHTML = "";
+
+    const qrDiv = document.createElement("div");
+    container.appendChild(qrDiv);
+
+    if (window.QRCode) {
+      new QRCode(qrDiv, {
+        text: text,
+        width: 150,
+        height: 150,
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      setTimeout(() => {
+        const canvas = qrDiv.querySelector("canvas");
+        const img = qrDiv.querySelector("img");
+        if (canvas) resolve(canvas.toDataURL("image/png"));
+        else if (img) resolve(img.src);
+        else resolve(null);
+      }, 100);
+    } else {
+      resolve(null);
+    }
+  });
+}
+
+// 4A. DOWNLOAD SINGLE (PER SISWA) - PNG KARTU ABSENSI
 async function downloadQRSiswaSingle(id) {
   const siswa = listSiswa.find(s => s.id === id);
-  if (!siswa) return alert("Data siswa tidak ditemukan");
+  if (!siswa) return alert("❌ Data siswa tidak ditemukan");
 
-  const container = document.getElementById("qrPrintContainer");
-  container.innerHTML = "";
+  const qrDataUrl = await generateQRCodeDataURL(siswa.nis);
+  if (!qrDataUrl) return alert("❌ Gagal membuat QR Code!");
 
-  // Render QR Code ke hidden div
-  const tempDiv = document.createElement("div");
-  container.appendChild(tempDiv);
-  new QRCode(tempDiv, { text: siswa.nis, width: 300, height: 300 });
-
-  await new Promise(r => setTimeout(r, 100));
-
-  const canvasQr = tempDiv.querySelector("canvas");
-  if (!canvasQr) return alert("Gagal memproses QR Code");
-
-  // Buat Canvas Gambar ID Card
   const canvas = document.createElement("canvas");
-  canvas.width = 500;
-  canvas.height = 320;
+  canvas.width = 600;  // High Definition Card Width
+  canvas.height = 380; // Standard Ratio ID Card (CR80)
   const ctx = canvas.getContext("2d");
 
   // Background Card
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Border & Header
+  // Card Border
   ctx.strokeStyle = "#4f46e5";
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 10;
   ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
+  // Header Banner
   ctx.fillStyle = "#4f46e5";
-  ctx.fillRect(0, 0, canvas.width, 60);
+  ctx.fillRect(0, 0, canvas.width, 70);
 
-  // Header Text
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 20px sans-serif";
-  ctx.fillText("KARTU PRESENSI SISWA", 20, 38);
-
-  // Detail Siswa (Teks Left)
-  ctx.fillStyle = "#0f172a";
   ctx.font = "bold 22px sans-serif";
-  ctx.fillText(siswa.nama.substring(0, 22), 25, 120);
+  ctx.fillText("KARTU PRESENSI SISWA", 25, 43);
+
+  // Data Siswa
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 24px sans-serif";
+  ctx.fillText(siswa.nama.substring(0, 22), 30, 130);
 
   ctx.fillStyle = "#475569";
-  ctx.font = "16px sans-serif";
-  ctx.fillText(`NIS    : ${siswa.nis}`, 25, 160);
-  ctx.fillText(`Kelas  : ${siswa.kelas}`, 25, 190);
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText(`NIS      : ${siswa.nis}`, 30, 180);
+  ctx.fillText(`Kelas    : ${siswa.kelas}`, 30, 220);
 
-  // Tempel Gambar QR
-  ctx.drawImage(canvasQr, 310, 80, 160, 160);
+  // Embed QR Image
+  const qrImage = new Image();
+  qrImage.onload = function() {
+    ctx.drawImage(qrImage, 380, 100, 180, 180);
 
-  // Footer Tagline
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "12px sans-serif";
-  ctx.fillText("PresensiSiswa App • Scan QR untuk Absensi", 25, 290);
+    // Footer
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "14px sans-serif";
+    ctx.fillText("PresensiSiswa App • Scan QR untuk Absensi Hari Ini", 30, 340);
 
-  // Download sebagai Gambar PNG
-  const link = document.createElement("a");
-  link.download = `QR_${siswa.nis}_${siswa.nama.replace(/\s+/g, '_')}.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+    // Download PNG
+    const link = document.createElement("a");
+    link.download = `Kartu_QR_${siswa.nis}_${siswa.nama.replace(/\s+/g, '_')}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+  qrImage.src = qrDataUrl;
+}
+
+// 4B. CETAK MASSAL KARTU ABSENSI A3 (PDF GRID UKURAN ID CARD 85.6mm x 53.9mm)
+async function downloadQRAll() {
+  if (listSiswa.length === 0) return alert("❌ Belum ada data siswa!");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a3' });
+
+  // Dimensi Lembar A3: 297mm x 420mm
+  // Ukuran Kartu ID Card Standar: 85.6mm x 53.9mm (BisaMuat 3 kolom x 7 baris = 21 kartu per halaman)
+  const cardWidth = 85.6;
+  const cardHeight = 53.9;
+  const marginX = 12;
+  const marginY = 15;
+  const gapX = 6;
+  const gapY = 5;
+  const maxCols = 3;
+
+  let x = marginX;
+  let y = marginY;
+  let col = 0;
+
+  for (let i = 0; i < listSiswa.length; i++) {
+    const siswa = listSiswa[i];
+    const qrDataUrl = await generateQRCodeDataURL(siswa.nis);
+
+    // Frame Kartu
+    doc.setDrawColor(79, 70, 229); // Border Indigo
+    doc.setLineWidth(0.8);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+
+    // Header Kartu
+    doc.setFillColor(79, 70, 229);
+    doc.rect(x, y, cardWidth, 10, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text("KARTU PRESENSI SISWA", x + 5, y + 6.5);
+
+    // Nama Siswa
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text(siswa.nama.substring(0, 22), x + 5, y + 18);
+
+    // NIS & Kelas
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`NIS   : ${siswa.nis}`, x + 5, y + 25);
+    doc.text(`Kelas : ${siswa.kelas}`, x + 5, y + 31);
+
+    // Tempel QR Code di Samping Kanan
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', x + cardWidth - 31, y + 14, 26, 26);
+    }
+
+    // Footer Kartu
+    doc.setFontSize(6.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text("PresensiSiswa App", x + 5, y + cardHeight - 4);
+
+    col++;
+    if (col >= maxCols) {
+      col = 0;
+      x = marginX;
+      y += cardHeight + gapY;
+      // Cek Batas Halaman A3
+      if (y + cardHeight > 400) {
+        doc.addPage();
+        x = marginX;
+        y = marginY;
+      }
+    } else {
+      x += cardWidth + gapX;
+    }
+  }
+
+  doc.save(`Kartu_Presensi_Siswa_A3_${Date.now()}.pdf`);
 }
 
 // --- CRUD SISWA ---
@@ -423,7 +536,7 @@ function deleteGuru(id) {
 }
 
 // ==========================================
-// 5. EXCEL IMPORT & CETAK QR MASSAL (PDF A3)
+// 5. EXCEL IMPORT & TEMPLATE
 // ==========================================
 function downloadTemplateExcel(type) {
   const data = type === 'siswa' 
@@ -472,75 +585,4 @@ function importExcel(e, type) {
     renderAdminTables();
   };
   reader.readAsArrayBuffer(file);
-}
-
-// CETAK QR CODE MASSAL PDF A3
-async function downloadQRAll() {
-  if (listSiswa.length === 0) return alert("❌ Belum ada data siswa untuk dicetak!");
-
-  alert("⏳ Sedang memproses PDF Kartu QR Siswa (Format A3)... Mohon tunggu beberapa detik.");
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a3' });
-
-  const container = document.getElementById("qrPrintContainer");
-  container.innerHTML = "";
-
-  let x = 15;
-  let y = 15;
-  const cardWidth = 65;
-  const cardHeight = 45;
-  const gap = 10;
-  const maxCols = 4;
-
-  let colCount = 0;
-
-  for (let i = 0; i < listSiswa.length; i++) {
-    const siswa = listSiswa[i];
-    
-    const qrDiv = document.createElement("div");
-    container.appendChild(qrDiv);
-    new QRCode(qrDiv, { text: siswa.nis, width: 120, height: 120 });
-
-    await new Promise(r => setTimeout(r, 50));
-    const qrCanvas = qrDiv.querySelector("canvas");
-    const qrImgData = qrCanvas ? qrCanvas.toDataURL("image/png") : "";
-
-    doc.setDrawColor(200, 200, 200);
-    doc.setFillColor(250, 250, 255);
-    doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.text("KARTU PRESENSI SISWA", x + 5, y + 8);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text(siswa.nama.substring(0, 20), x + 5, y + 16);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`NIS: ${siswa.nis}`, x + 5, y + 22);
-    doc.text(`Kelas: ${siswa.kelas}`, x + 5, y + 27);
-
-    if (qrImgData) {
-      doc.addImage(qrImgData, 'PNG', x + cardWidth - 28, y + 10, 23, 23);
-    }
-
-    colCount++;
-    if (colCount >= maxCols) {
-      colCount = 0;
-      x = 15;
-      y += cardHeight + gap;
-      if (y + cardHeight > 400) {
-        doc.addPage();
-        y = 15;
-      }
-    } else {
-      x += cardWidth + gap;
-    }
-  }
-
-  doc.save(`Kartu_QR_Siswa_A3_${Date.now()}.pdf`);
 }
