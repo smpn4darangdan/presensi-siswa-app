@@ -2,10 +2,10 @@
 let listSiswa = [];
 let listGuru = [];
 let listAttendance = [];
-let currentUser = null; // { role: 'admin'|'guru', name: string, identifier: string }
+let currentUser = null;
 
 // ==========================================
-// 1. SYSTEM INITIALIZATION & LOGIN
+// 1. INITIALIZATION & LOGIN
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
   loadMasterData();
@@ -14,8 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function loadMasterData() {
   listSiswa = JSON.parse(localStorage.getItem("DATA_SISWA")) || [
-    { id: "1", nis: "1001", nama: "Ahmad Rizky", kelas: "7A", no_hp_ortu: "628123456789" },
-    { id: "2", nis: "1002", nama: "Siti Nurhaliza", kelas: "7A", no_hp_ortu: "628987654321" }
+    { id: "1", nis: "3121131160", nama: "Agis Kurniawan", kelas: "7 A", no_hp_ortu: "6283194600265" },
+    { id: "2", nis: "3140035850", nama: "Akmal Maulana Yusup", kelas: "7 A", no_hp_ortu: "6283194600265" },
+    { id: "3", nis: "131796257", nama: "Algika Wiguna Irawan", kelas: "7 A", no_hp_ortu: "6283194600265" }
   ];
   listGuru = JSON.parse(localStorage.getItem("DATA_GURU")) || [
     { id: "1", nip: "19850101201001", nama: "Budi Santoso, S.Pd.", username: "budisantoso" },
@@ -57,10 +58,9 @@ function handleLogin(e) {
     if (inputUser === "admin" && inputPass === "admin123") {
       currentUser = { role: "admin", name: "Administrator", identifier: "admin" };
     } else {
-      return alert("❌ Username atau password Admin salah! (Default: admin / admin123)");
+      return alert("❌ Username atau password Admin salah!");
     }
   } else {
-    // LOGIN GURU TANPA PASSWORD
     const foundGuru = listGuru.find(g => 
       (g.nip && g.nip.toLowerCase() === inputUser) || 
       (g.username && g.username.toLowerCase() === inputUser) ||
@@ -70,7 +70,7 @@ function handleLogin(e) {
     if (foundGuru) {
       currentUser = { role: "guru", name: foundGuru.nama, identifier: foundGuru.nip || foundGuru.username };
     } else {
-      return alert("❌ Data NIP / Nama Guru tidak ditemukan di sistem master!");
+      return alert("❌ Data NIP / Nama Guru tidak ditemukan!");
     }
   }
 
@@ -107,31 +107,21 @@ function handleLogout() {
 }
 
 // ==========================================
-// 2. LOGIKA ABSENSI DASHBOARD GURU
+// 2. DASHBOARD GURU
 // ==========================================
 function handleGuruScan(e) {
   e.preventDefault();
   const selectedKelas = document.getElementById("guruSelectKelas").value;
-  if (!selectedKelas) {
-    alert("⚠️ Silakan pilih kelas terlebih dahulu sebelum melakukan presensi!");
-    return;
-  }
+  if (!selectedKelas) return alert("⚠️ Pilih kelas dulu!");
 
   const qrInput = document.getElementById("guruQrInput").value.trim();
   if (!qrInput) return;
 
   const siswa = listSiswa.find(s => s.nis === qrInput || s.id === qrInput);
   if (!siswa) {
-    alert(`❌ Siswa dengan NIS/QR '${qrInput}' tidak ditemukan!`);
+    alert(`❌ Siswa dengan NIS '${qrInput}' tidak ditemukan!`);
     document.getElementById("guruQrInput").value = "";
     return;
-  }
-
-  if (siswa.kelas !== selectedKelas) {
-    if (!confirm(`⚠️ Siswa ${siswa.nama} terdaftar di kelas ${siswa.kelas}, bukan kelas ${selectedKelas}. Lanjutkan presensi?`)) {
-      document.getElementById("guruQrInput").value = "";
-      return;
-    }
   }
 
   const now = new Date();
@@ -152,7 +142,7 @@ function handleGuruScan(e) {
   listAttendance.unshift(attendanceRecord);
   localStorage.setItem("DATA_ATTENDANCE", JSON.stringify(listAttendance));
 
-  alert(`✅ Presensi Berhasil: ${siswa.nama} (${siswa.kelas})`);
+  alert(`✅ Presensi Berhasil: ${siswa.nama}`);
   document.getElementById("guruQrInput").value = "";
   loadGuruAttendanceHistory();
 }
@@ -171,7 +161,7 @@ function loadGuruAttendanceHistory() {
   const today = new Date().toISOString().split('T')[0];
   const filtered = listAttendance.filter(a => 
     a.tanggal === today && 
-    a.kelas === selectedKelas && 
+    a.kelas.replace(/\s+/g, '') === selectedKelas.replace(/\s+/g, '') && 
     a.scannedByName === currentUser.name
   );
 
@@ -194,7 +184,7 @@ function loadGuruAttendanceHistory() {
 }
 
 // ==========================================
-// 3. LOGIKA DASHBOARD ADMIN & CRUD
+// 3. DASHBOARD ADMIN & TABEL MASTER
 // ==========================================
 function switchAdminTab(tab) {
   document.getElementById("adminTabScan").classList.add("hidden");
@@ -218,7 +208,6 @@ function switchAdminTab(tab) {
 }
 
 function renderAdminTables() {
-  // Render Tabel All Presensi
   const today = new Date().toISOString().split('T')[0];
   const tbodyAtt = document.getElementById("adminAttendanceTable");
   const todayAtt = listAttendance.filter(a => a.tanggal === today);
@@ -237,7 +226,7 @@ function renderAdminTables() {
     `).join('');
   }
 
-  // Render Tabel Master Siswa
+  // Render Tabel Master Siswa (DENGAN TOMBOL QR PER SISWA, EDIT & HAPUS)
   const tbodySiswa = document.getElementById("studentsTable");
   tbodySiswa.innerHTML = listSiswa.map(s => `
     <tr class="hover:bg-slate-50 border-b border-slate-100">
@@ -246,8 +235,9 @@ function renderAdminTables() {
       <td class="p-3"><span class="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-bold">${s.kelas}</span></td>
       <td class="p-3 text-xs font-mono">${s.no_hp_ortu || '-'}</td>
       <td class="p-3 text-center space-x-1">
-        <button onclick="editSiswa('${s.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">✏️ Edit</button>
-        <button onclick="deleteSiswa('${s.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">🗑️ Hapus</button>
+        <button onclick="downloadQRSiswaSingle('${s.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 py-1 rounded shadow-sm transition" title="Download QR Siswa ini">📇 QR</button>
+        <button onclick="editSiswa('${s.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm transition">✏️ Edit</button>
+        <button onclick="deleteSiswa('${s.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm transition">🗑️ Hapus</button>
       </td>
     </tr>
   `).join('');
@@ -260,11 +250,79 @@ function renderAdminTables() {
       <td class="p-3 font-medium text-slate-800">${g.nama}</td>
       <td class="p-3 font-mono text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-fit">${g.username}</td>
       <td class="p-3 text-center space-x-1">
-        <button onclick="editGuru('${g.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">✏️ Edit</button>
-        <button onclick="deleteGuru('${g.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm">🗑️ Hapus</button>
+        <button onclick="editGuru('${g.id}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded shadow-sm transition">✏️ Edit</button>
+        <button onclick="deleteGuru('${g.id}')" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded shadow-sm transition">🗑️ Hapus</button>
       </td>
     </tr>
   `).join('');
+}
+
+// ==========================================
+// 4. DOWNLOAD QR CODE PER SISWA (SINGLE)
+// ==========================================
+async function downloadQRSiswaSingle(id) {
+  const siswa = listSiswa.find(s => s.id === id);
+  if (!siswa) return alert("Data siswa tidak ditemukan");
+
+  const container = document.getElementById("qrPrintContainer");
+  container.innerHTML = "";
+
+  // Render QR Code ke hidden div
+  const tempDiv = document.createElement("div");
+  container.appendChild(tempDiv);
+  new QRCode(tempDiv, { text: siswa.nis, width: 300, height: 300 });
+
+  await new Promise(r => setTimeout(r, 100));
+
+  const canvasQr = tempDiv.querySelector("canvas");
+  if (!canvasQr) return alert("Gagal memproses QR Code");
+
+  // Buat Canvas Gambar ID Card
+  const canvas = document.createElement("canvas");
+  canvas.width = 500;
+  canvas.height = 320;
+  const ctx = canvas.getContext("2d");
+
+  // Background Card
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Border & Header
+  ctx.strokeStyle = "#4f46e5";
+  ctx.lineWidth = 8;
+  ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#4f46e5";
+  ctx.fillRect(0, 0, canvas.width, 60);
+
+  // Header Text
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("KARTU PRESENSI SISWA", 20, 38);
+
+  // Detail Siswa (Teks Left)
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText(siswa.nama.substring(0, 22), 25, 120);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "16px sans-serif";
+  ctx.fillText(`NIS    : ${siswa.nis}`, 25, 160);
+  ctx.fillText(`Kelas  : ${siswa.kelas}`, 25, 190);
+
+  // Tempel Gambar QR
+  ctx.drawImage(canvasQr, 310, 80, 160, 160);
+
+  // Footer Tagline
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "12px sans-serif";
+  ctx.fillText("PresensiSiswa App • Scan QR untuk Absensi", 25, 290);
+
+  // Download sebagai Gambar PNG
+  const link = document.createElement("a");
+  link.download = `QR_${siswa.nis}_${siswa.nama.replace(/\s+/g, '_')}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
 
 // --- CRUD SISWA ---
@@ -275,9 +333,7 @@ function openModalSiswa() {
   document.getElementById('modalSiswa').classList.remove('hidden'); 
 }
 
-function closeModalSiswa() { 
-  document.getElementById('modalSiswa').classList.add('hidden'); 
-}
+function closeModalSiswa() { document.getElementById('modalSiswa').classList.add('hidden'); }
 
 function editSiswa(id) {
   const siswa = listSiswa.find(s => s.id === id);
@@ -300,13 +356,9 @@ function saveSiswa(e) {
   const no_hp_ortu = document.getElementById('siswaNoHp').value;
 
   if (id) {
-    // Mode Update / Edit
-    const index = listSiswa.findIndex(s => s.id === id);
-    if (index !== -1) {
-      listSiswa[index] = { id, nis, nama, kelas, no_hp_ortu };
-    }
+    const idx = listSiswa.findIndex(s => s.id === id);
+    if (idx !== -1) listSiswa[idx] = { id, nis, nama, kelas, no_hp_ortu };
   } else {
-    // Mode Tambah Baru
     listSiswa.push({ id: Date.now().toString(), nis, nama, kelas, no_hp_ortu });
   }
 
@@ -316,7 +368,7 @@ function saveSiswa(e) {
 }
 
 function deleteSiswa(id) {
-  if (confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
+  if (confirm("Hapus data siswa ini?")) {
     listSiswa = listSiswa.filter(s => s.id !== id);
     localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
     renderAdminTables();
@@ -331,9 +383,7 @@ function openModalGuru() {
   document.getElementById('modalGuru').classList.remove('hidden'); 
 }
 
-function closeModalGuru() { 
-  document.getElementById('modalGuru').classList.add('hidden'); 
-}
+function closeModalGuru() { document.getElementById('modalGuru').classList.add('hidden'); }
 
 function editGuru(id) {
   const guru = listGuru.find(g => g.id === id);
@@ -353,13 +403,9 @@ function saveGuru(e) {
   const usernameClean = nama.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   if (id) {
-    // Mode Update / Edit
-    const index = listGuru.findIndex(g => g.id === id);
-    if (index !== -1) {
-      listGuru[index] = { id, nip, nama, username: usernameClean };
-    }
+    const idx = listGuru.findIndex(g => g.id === id);
+    if (idx !== -1) listGuru[idx] = { id, nip, nama, username: usernameClean };
   } else {
-    // Mode Tambah Baru
     listGuru.push({ id: Date.now().toString(), nip, nama, username: usernameClean });
   }
 
@@ -369,14 +415,16 @@ function saveGuru(e) {
 }
 
 function deleteGuru(id) {
-  if (confirm("Apakah Anda yakin ingin menghapus data guru ini?")) {
+  if (confirm("Hapus data guru ini?")) {
     listGuru = listGuru.filter(g => g.id !== id);
     localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
     renderAdminTables();
   }
 }
 
-// EXCEL IMPORT & EXPORT
+// ==========================================
+// 5. EXCEL IMPORT & CETAK QR MASSAL (PDF A3)
+// ==========================================
 function downloadTemplateExcel(type) {
   const data = type === 'siswa' 
     ? [{ NIS: "1001", NAMA: "Ahmad Rizky", KELAS: "7A", NO_WA_ORTU: "628123456789" }]
@@ -426,6 +474,73 @@ function importExcel(e, type) {
   reader.readAsArrayBuffer(file);
 }
 
-function downloadQRAll() {
-  alert("Generating PDF QR A3...");
+// CETAK QR CODE MASSAL PDF A3
+async function downloadQRAll() {
+  if (listSiswa.length === 0) return alert("❌ Belum ada data siswa untuk dicetak!");
+
+  alert("⏳ Sedang memproses PDF Kartu QR Siswa (Format A3)... Mohon tunggu beberapa detik.");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a3' });
+
+  const container = document.getElementById("qrPrintContainer");
+  container.innerHTML = "";
+
+  let x = 15;
+  let y = 15;
+  const cardWidth = 65;
+  const cardHeight = 45;
+  const gap = 10;
+  const maxCols = 4;
+
+  let colCount = 0;
+
+  for (let i = 0; i < listSiswa.length; i++) {
+    const siswa = listSiswa[i];
+    
+    const qrDiv = document.createElement("div");
+    container.appendChild(qrDiv);
+    new QRCode(qrDiv, { text: siswa.nis, width: 120, height: 120 });
+
+    await new Promise(r => setTimeout(r, 50));
+    const qrCanvas = qrDiv.querySelector("canvas");
+    const qrImgData = qrCanvas ? qrCanvas.toDataURL("image/png") : "";
+
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(250, 250, 255);
+    doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text("KARTU PRESENSI SISWA", x + 5, y + 8);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(siswa.nama.substring(0, 20), x + 5, y + 16);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`NIS: ${siswa.nis}`, x + 5, y + 22);
+    doc.text(`Kelas: ${siswa.kelas}`, x + 5, y + 27);
+
+    if (qrImgData) {
+      doc.addImage(qrImgData, 'PNG', x + cardWidth - 28, y + 10, 23, 23);
+    }
+
+    colCount++;
+    if (colCount >= maxCols) {
+      colCount = 0;
+      x = 15;
+      y += cardHeight + gap;
+      if (y + cardHeight > 400) {
+        doc.addPage();
+        y = 15;
+      }
+    } else {
+      x += cardWidth + gap;
+    }
+  }
+
+  doc.save(`Kartu_QR_Siswa_A3_${Date.now()}.pdf`);
 }
