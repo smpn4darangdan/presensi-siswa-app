@@ -156,7 +156,8 @@ function showAppView() {
 
 function cleanNIS(nis) {
   if (!nis) return "";
-  return nis.toString().trim().replace(/\s+/g, '').replace(/^0+/, '');
+  // Hanya menghapus spasi tanpa memotong angka 0 di depan
+  return nis.toString().trim().replace(/\s+/g, '');
 }
 
 // ================= KAMERA SCANNER LIVE =================
