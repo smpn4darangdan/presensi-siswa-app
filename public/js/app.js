@@ -73,8 +73,8 @@ function switchLoginRole(role) {
     guruBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600";
     adminBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600";
     passGroup.classList.add("hidden");
-    userLabel.innerText = "NIP / Nama Lengkap (Huruf Kecil Tanpa Spasi)";
-    userInp.placeholder = "contoh: 19820101... atau budisantoso";
+    userLabel.innerText = "Username / NIP Guru";
+    userInp.placeholder = "contoh: budi123 atau budisantoso";
   } else {
     adminBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600";
     guruBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600";
@@ -100,19 +100,21 @@ function handleLogin(e) {
       alert("❌ Username atau Password Admin salah!");
     }
   } else {
+    // Cari Guru berdasarkan: NIP, Username Custom, atau Username Default dari Nama
     const foundGuru = listGuru.find(g => {
-      const nipMatch = g.nip && g.nip.trim() === usernameVal;
-      const nameClean = g.nama.toLowerCase().replace(/\s+/g, '');
-      return nipMatch || nameClean === usernameVal;
+      const nipMatch = g.nip && g.nip.trim().toLowerCase() === usernameVal;
+      const userMatch = g.username && g.username.trim().toLowerCase() === usernameVal;
+      const defaultUser = g.nama.toLowerCase().replace(/\s+/g, '');
+      return nipMatch || userMatch || defaultUser === usernameVal;
     });
 
     if (foundGuru) {
-      currentUser = { role: 'guru', name: foundGuru.nama, identifier: foundGuru.nip || usernameVal };
+      currentUser = { role: 'guru', name: foundGuru.nama, identifier: foundGuru.username || foundGuru.nip || usernameVal };
       localStorage.setItem("CURRENT_USER", JSON.stringify(currentUser));
       showAppView();
       bicara(`Selamat datang ${foundGuru.nama}`);
     } else {
-      alert("❌ Data Guru tidak ditemukan!");
+      alert("❌ Username / NIP Guru tidak ditemukan!");
     }
   }
 }
@@ -154,7 +156,7 @@ function showAppView() {
   }
 }
 
-// Normalisasi Nama (Menyamakan Spasi & Huruf Besar/Kecil)
+// Helper pembersih format nama
 function cleanNama(nama) {
   if (!nama) return "";
   return String(nama).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -214,7 +216,7 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  // Cari siswa MURNI hanya berdasarkan NAMA LENGKAP (NISN diabaikan)
+  // Cari Siswa murni berdasarkan NAMA LENGKAP
   const siswa = listSiswa.find(s => cleanNama(s.nama) === cleanScannedNama);
 
   if (!siswa) {
@@ -320,20 +322,23 @@ function renderAdminTables() {
 
   const gurTb = document.getElementById("teachersTable");
   gurTb.innerHTML = listGuru.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada data guru.</td></tr>` :
-    listGuru.map((g, idx) => `
-      <tr class="hover:bg-slate-50">
-        <td class="p-3 font-mono text-xs">${g.nip || '-'}</td>
-        <td class="p-3 font-semibold">${g.nama}</td>
-        <td class="p-3 font-mono text-xs text-indigo-600">${g.nama.toLowerCase().replace(/\s+/g, '')}</td>
-        <td class="p-3 text-center space-x-1">
-          <button onclick="editGuru(${idx})" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-semibold">✏️ Edit</button>
-          <button onclick="deleteGuru(${idx})" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded font-semibold">🗑️ Hapus</button>
-        </td>
-      </tr>
-    `).join("");
+    listGuru.map((g, idx) => {
+      const displayUsername = g.username ? g.username : g.nama.toLowerCase().replace(/\s+/g, '');
+      return `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono text-xs">${g.nip || '-'}</td>
+          <td class="p-3 font-semibold text-slate-800">${g.nama}</td>
+          <td class="p-3 font-mono text-xs text-indigo-600 font-semibold">${displayUsername}</td>
+          <td class="p-3 text-center space-x-1">
+            <button onclick="editGuru(${idx})" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-semibold">✏️ Edit</button>
+            <button onclick="deleteGuru(${idx})" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded font-semibold">🗑️ Hapus</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
 }
 
-// EDIT & MODAL SISWA (OTOMATIS UPDATE QR KETIKA SISWA DIEDIT)
+// MODAL & SAVE SISWA
 function openModalSiswa() {
   document.getElementById("siswaIndex").value = "-1";
   document.getElementById("modalSiswaTitle").innerText = "Tambah Siswa Baru";
@@ -395,12 +400,13 @@ function deleteSiswa(idx) {
   }
 }
 
-// EDIT & MODAL GURU
+// MODAL & SAVE GURU (DENGAN USERNAME)
 function openModalGuru() {
   document.getElementById("guruIndex").value = "-1";
   document.getElementById("modalGuruTitle").innerText = "Tambah Guru Baru";
   document.getElementById("guruNip").value = "";
   document.getElementById("guruNama").value = "";
+  document.getElementById("guruUsername").value = "";
   document.getElementById("modalGuru").classList.remove("hidden");
 }
 
@@ -410,6 +416,7 @@ function editGuru(idx) {
   document.getElementById("modalGuruTitle").innerText = "Edit Data Guru";
   document.getElementById("guruNip").value = g.nip || "";
   document.getElementById("guruNama").value = g.nama;
+  document.getElementById("guruUsername").value = g.username || "";
   document.getElementById("modalGuru").classList.remove("hidden");
 }
 
@@ -420,12 +427,20 @@ function saveGuru(e) {
   const idx = parseInt(document.getElementById("guruIndex").value);
   const nip = document.getElementById("guruNip").value.trim();
   const nama = document.getElementById("guruNama").value.trim();
+  let username = document.getElementById("guruUsername").value.trim().toLowerCase().replace(/\s+/g, '');
+
+  if (!nama) return alert("⚠️ Nama guru wajib diisi!");
+
+  if (!username) {
+    username = nama.toLowerCase().replace(/\s+/g, '');
+  }
 
   if (idx === -1) {
-    listGuru.push({ nip, nama });
+    listGuru.push({ nip, nama, username });
   } else {
-    listGuru[idx] = { nip, nama };
+    listGuru[idx] = { nip, nama, username };
   }
+
   localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
   closeModalGuru();
   renderAdminTables();
@@ -458,7 +473,12 @@ function importExcel(e, type) {
       listSiswa = listSiswa.concat(imported);
       localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
     } else {
-      const imported = data.map(i => ({ nip: (i.NIP||i.nip||"").toString().trim(), nama: (i.NAMA||i.Nama||i.nama||"").toString().trim() })).filter(x => x.nama);
+      const imported = data.map(i => {
+        const nipVal = (i.NIP||i.nip||"").toString().trim();
+        const namaVal = (i.NAMA||i.Nama||i.nama||"").toString().trim();
+        const userVal = (i.USERNAME||i.username||"").toString().trim().toLowerCase().replace(/\s+/g, '');
+        return { nip: nipVal, nama: namaVal, username: userVal || namaVal.toLowerCase().replace(/\s+/g, '') };
+      }).filter(x => x.nama);
       listGuru = listGuru.concat(imported);
       localStorage.setItem("DATA_GURU", JSON.stringify(listGuru));
     }
@@ -468,7 +488,7 @@ function importExcel(e, type) {
 }
 
 function downloadTemplateExcel(type) {
-  const data = type === 'siswa' ? [{ NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "628123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd." }];
+  const data = type === 'siswa' ? [{ NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "628123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd.", USERNAME: "budisantoso" }];
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template");
