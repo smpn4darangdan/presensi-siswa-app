@@ -154,16 +154,10 @@ function showAppView() {
   }
 }
 
-// Mengabaikan spasi dan angka 0 di depan NIS agar 03121131160 == 3121131160
-function cleanNIS(nis) {
-  if (!nis) return "";
-  return String(nis).replace(/\D/g, '').replace(/^0+/, '');
-}
-
-// Mengabaikan spasi dan kata "Kelas" agar "7 A" == "7A" == "Kelas 7A"
-function cleanKelas(kelas) {
-  if (!kelas) return "";
-  return String(kelas).toUpperCase().replace(/KELAS/g, '').replace(/\s+/g, '');
+// Normalisasi Nama Siswa
+function cleanNama(nama) {
+  if (!nama) return "";
+  return String(nama).trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 // ================= KAMERA SCANNER LIVE =================
@@ -202,8 +196,10 @@ function processScannedQR(decodedText, scannedByRole) {
   if (isProcessingScan) return;
   isProcessingScan = true;
 
-  const qrClean = cleanNIS(decodedText);
-  if (!qrClean) { 
+  const rawDecoded = String(decodedText || "").trim();
+  const cleanScannedNama = cleanNama(rawDecoded);
+  
+  if (!rawDecoded) { 
     isProcessingScan = false; 
     return; 
   }
@@ -218,15 +214,12 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  // Cari siswa dengan mencocokkan nis, NIS, atau ID secara fleksibel
-  const siswa = listSiswa.find(s => {
-    const nisSiswa = cleanNIS(s.nis || s.NIS || s.id || "");
-    return nisSiswa === qrClean;
-  });
+  // Cari siswa berdasarkan NAMA LENGKAP
+  const siswa = listSiswa.find(s => cleanNama(s.nama) === cleanScannedNama);
 
   if (!siswa) {
-    bicara("Data siswa tidak ditemukan");
-    alert(`❌ NIS / Data Siswa (${decodedText}) tidak terdaftar!`);
+    bicara("Siswa tidak ditemukan");
+    alert(`❌ Siswa dengan Nama "${decodedText}" tidak terdaftar!`);
     setTimeout(() => { isProcessingScan = false; }, 2500);
     return;
   }
@@ -235,7 +228,9 @@ function processScannedQR(decodedText, scannedByRole) {
   const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   const dateStr = now.toISOString().split('T')[0];
 
-  const sudahAbsen = listAttendance.some(a => a.tanggal === dateStr && cleanNIS(a.nis) === qrClean);
+  const sudahAbsen = listAttendance.some(a => {
+    return a.tanggal === dateStr && cleanNama(a.nama) === cleanScannedNama;
+  });
 
   if (sudahAbsen) {
     bicara(`Siswa ${siswa.nama} sudah di scan`);
@@ -243,7 +238,7 @@ function processScannedQR(decodedText, scannedByRole) {
   } else {
     listAttendance.unshift({
       id: Date.now().toString(),
-      nis: siswa.nis.toString(),
+      nis: siswa.nis || "-",
       nama: siswa.nama,
       kelas: siswa.kelas,
       scannedByRole: scannedByRole,
@@ -272,8 +267,8 @@ function loadGuruAttendanceHistory() {
   const filtered = listAttendance.filter(a => a.tanggal === today && (!selectedKelas || a.kelas === selectedKelas));
   document.getElementById("guruTotalScanned").innerText = `${filtered.length} Siswa`;
 
-  tbody.innerHTML = filtered.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada siswa di-scan.</td></tr>` :
-    filtered.map(a => `<tr class="hover:bg-slate-50"><td class="p-2.5 font-mono text-xs">${a.jam}</td><td class="p-2.5 font-mono text-xs">${a.nis}</td><td class="p-2.5 font-semibold">${a.nama}</td><td class="p-2.5">${a.kelas}</td><td class="p-2.5 text-center text-emerald-600 font-semibold">✅ Hadir</td></tr>`).join("");
+  tbody.innerHTML = filtered.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada siswa di-scan.</td></tr>` :
+    filtered.map(a => `<tr class="hover:bg-slate-50"><td class="p-2.5 font-mono text-xs">${a.jam}</td><td class="p-2.5 font-semibold text-slate-800">${a.nama}</td><td class="p-2.5">${a.kelas}</td><td class="p-2.5 text-center text-emerald-600 font-semibold">✅ Hadir</td></tr>`).join("");
 }
 
 function switchAdminTab(tab) {
@@ -304,19 +299,19 @@ function renderAdminTables() {
   const today = new Date().toISOString().split('T')[0];
   const todayAtt = listAttendance.filter(a => a.tanggal === today);
 
-  attTb.innerHTML = todayAtt.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada riwayat.</td></tr>` :
-    todayAtt.map(a => `<tr class="hover:bg-slate-50"><td class="p-3 font-mono text-xs">${a.jam}</td><td class="p-3 font-mono text-xs">${a.nis}</td><td class="p-3 font-semibold">${a.nama}</td><td class="p-3">${a.kelas}</td><td class="p-3 text-xs text-indigo-600">${a.scannedByName}</td></tr>`).join("");
+  attTb.innerHTML = todayAtt.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada riwayat.</td></tr>` :
+    todayAtt.map(a => `<tr class="hover:bg-slate-50"><td class="p-3 font-mono text-xs">${a.jam}</td><td class="p-3 font-semibold">${a.nama}</td><td class="p-3">${a.kelas}</td><td class="p-3 text-xs text-indigo-600">${a.scannedByName}</td></tr>`).join("");
 
   const sisTb = document.getElementById("studentsTable");
   sisTb.innerHTML = listSiswa.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data siswa.</td></tr>` :
     listSiswa.map((s, idx) => `
       <tr class="hover:bg-slate-50">
-        <td class="p-3 font-mono text-xs font-bold">${s.nis}</td>
-        <td class="p-3 font-semibold">${s.nama}</td>
+        <td class="p-3 font-semibold text-slate-800">${s.nama}</td>
         <td class="p-3">${s.kelas}</td>
+        <td class="p-3 font-mono text-xs text-slate-500">${s.nis || '-'}</td>
         <td class="p-3 text-xs text-slate-500">${s.noHp || '-'}</td>
         <td class="p-3 text-center space-x-1">
-          <button onclick="downloadSingleQR('${s.nis}', '${s.nama}')" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-semibold">📇 QR</button>
+          <button onclick="downloadSingleQR('${s.nama}')" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-semibold">📇 QR Nama</button>
           <button onclick="editSiswa(${idx})" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-semibold">✏️ Edit</button>
           <button onclick="deleteSiswa(${idx})" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded font-semibold">🗑️ Hapus</button>
         </td>
@@ -342,9 +337,9 @@ function renderAdminTables() {
 function openModalSiswa() {
   document.getElementById("siswaIndex").value = "-1";
   document.getElementById("modalSiswaTitle").innerText = "Tambah Siswa Baru";
-  document.getElementById("siswaNis").value = "";
   document.getElementById("siswaNama").value = "";
   document.getElementById("siswaKelas").value = "";
+  document.getElementById("siswaNis").value = "";
   document.getElementById("siswaNoHp").value = "";
   document.getElementById("modalSiswa").classList.remove("hidden");
 }
@@ -353,9 +348,9 @@ function editSiswa(idx) {
   const s = listSiswa[idx];
   document.getElementById("siswaIndex").value = idx;
   document.getElementById("modalSiswaTitle").innerText = "Edit Data Siswa";
-  document.getElementById("siswaNis").value = s.nis;
   document.getElementById("siswaNama").value = s.nama;
   document.getElementById("siswaKelas").value = s.kelas;
+  document.getElementById("siswaNis").value = s.nis || "";
   document.getElementById("siswaNoHp").value = s.noHp || "";
   document.getElementById("modalSiswa").classList.remove("hidden");
 }
@@ -365,15 +360,15 @@ function closeModalSiswa() { document.getElementById("modalSiswa").classList.add
 function saveSiswa(e) {
   e.preventDefault();
   const idx = parseInt(document.getElementById("siswaIndex").value);
-  const nis = document.getElementById("siswaNis").value.trim();
   const nama = document.getElementById("siswaNama").value.trim();
   const kelas = document.getElementById("siswaKelas").value.trim();
+  const nis = document.getElementById("siswaNis").value.trim();
   const noHp = document.getElementById("siswaNoHp").value.trim();
 
   if (idx === -1) {
-    listSiswa.push({ nis, nama, kelas, noHp });
+    listSiswa.push({ nama, kelas, nis, noHp });
   } else {
-    listSiswa[idx] = { nis, nama, kelas, noHp };
+    listSiswa[idx] = { nama, kelas, nis, noHp };
   }
   localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
   closeModalSiswa();
@@ -441,7 +436,13 @@ function importExcel(e, type) {
     const wb = XLSX.read(evt.target.result, { type: 'binary' });
     const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
     if (type === 'siswa') {
-      const imported = data.map(i => ({ nis: (i.NIS||i.nis||"").toString().trim(), nama: (i.NAMA||i.Nama||i.nama||"").toString().trim(), kelas: (i.KELAS||i.Kelas||i.kelas||"").toString().trim(), noHp: (i.HP||i.hp||i.WA||"").toString().trim() })).filter(x => x.nis && x.nama);
+      const imported = data.map(i => {
+        const namaVal = (i.NAMA || i.Nama || i.nama || "").toString().trim();
+        const kelasVal = (i.KELAS || i.Kelas || i.kelas || "").toString().trim();
+        const nisVal = (i.NISN || i.nisn || i.NIS || i.nis || "").toString().trim();
+        const hpVal = (i.HP || i.hp || i.WA || i.wa || i.NO_HP || "").toString().trim();
+        return { nama: namaVal, kelas: kelasVal, nis: nisVal, noHp: hpVal };
+      }).filter(x => x.nama);
       listSiswa = listSiswa.concat(imported);
       localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
     } else {
@@ -455,7 +456,7 @@ function importExcel(e, type) {
 }
 
 function downloadTemplateExcel(type) {
-  const data = type === 'siswa' ? [{ NIS: "1001", NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "628123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd." }];
+  const data = type === 'siswa' ? [{ NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "628123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd." }];
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -476,27 +477,26 @@ function generateQRCanvas(text) {
   });
 }
 
-async function downloadSingleQR(nis, nama) {
-  const qrDataUrl = await generateQRCanvas(nis);
-  if (!qrDataUrl) return alert("Gagal!");
+async function downloadSingleQR(nama) {
+  const qrDataUrl = await generateQRCanvas(nama);
+  if (!qrDataUrl) return alert("Gagal membuat QR Code!");
   const link = document.createElement("a");
   link.href = qrDataUrl;
-  link.download = `QR_${nis}_${nama}.png`;
+  link.download = `QR_SISWA_${nama.replace(/\s+/g, '_')}.png`;
   link.click();
 }
 
-// CETAK KARTU PDF A3 MODE PORTRAIT
+// CETAK KARTU PDF A3 MODE PORTRAIT (BERBASIS NAMA)
 async function downloadQRAll() {
   if (listSiswa.length === 0) return alert("Tidak ada data siswa!");
   const { jsPDF } = window.jspdf;
 
-  // Set Portrait pada Kertas A3 (297mm x 420mm)
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a3" });
   
   const cardW = 85.6, cardH = 53.9;
   const startX = 12, startY = 15;
   const gapX = 8, gapY = 8;
-  const cols = 3, rows = 7; // Grid 3x7 per halaman A3 Portrait
+  const cols = 3, rows = 7;
   let col = 0, row = 0;
 
   for (let i = 0; i < listSiswa.length; i++) {
@@ -508,7 +508,7 @@ async function downloadQRAll() {
     const x = startX + col * (cardW + gapX);
     const y = startY + row * (cardH + gapY);
 
-    // Kartu Border
+    // Card Border
     doc.setDrawColor(200);
     doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
 
@@ -520,20 +520,19 @@ async function downloadQRAll() {
     doc.setFont("helvetica", "bold");
     doc.text("KARTU PRESENSI SISWA", x + cardW / 2, y + 8, { align: "center" });
 
-    // QR Code
-    const qrUrl = await generateQRCanvas(listSiswa[i].nis);
+    // isi QR Code berupa NAMA LENGKAP siswa
+    const qrUrl = await generateQRCanvas(listSiswa[i].nama);
     if (qrUrl) doc.addImage(qrUrl, "PNG", x + 5, y + 16, 32, 32);
 
     // Detail Informasi Siswa
     doc.setTextColor(30);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(listSiswa[i].nama, x + 40, y + 23);
+    doc.text(listSiswa[i].nama, x + 40, y + 24, { maxWidth: 42 });
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`NIS     : ${listSiswa[i].nis}`, x + 40, y + 30);
-    doc.text(`Kelas   : ${listSiswa[i].kelas}`, x + 40, y + 36);
+    doc.text(`Kelas : ${listSiswa[i].kelas}`, x + 40, y + 36);
 
     col++;
     if (col >= cols) {
