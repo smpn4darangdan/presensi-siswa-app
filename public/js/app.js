@@ -74,7 +74,7 @@ function switchLoginRole(role) {
     adminBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600";
     passGroup.classList.add("hidden");
     userLabel.innerText = "Username / NIP Guru";
-    userInp.placeholder = "contoh: budi123 atau budisantoso";
+    userInp.placeholder = "contoh: 19820101... atau budisantoso";
   } else {
     adminBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600";
     guruBtn.className = "w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600";
@@ -100,7 +100,7 @@ function handleLogin(e) {
       alert("❌ Username atau Password Admin salah!");
     }
   } else {
-    // Cari Guru berdasarkan: NIP, Username Custom, atau Username Default dari Nama
+    // Cari Guru berdasarkan NIP, Username Custom, atau Default Username dari Nama
     const foundGuru = listGuru.find(g => {
       const nipMatch = g.nip && g.nip.trim().toLowerCase() === usernameVal;
       const userMatch = g.username && g.username.trim().toLowerCase() === usernameVal;
@@ -216,7 +216,7 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  // Cari Siswa murni berdasarkan NAMA LENGKAP
+  // Cari Siswa Murni berdasarkan NAMA LENGKAP
   const siswa = listSiswa.find(s => cleanNama(s.nama) === cleanScannedNama);
 
   if (!siswa) {
@@ -269,8 +269,8 @@ function loadGuruAttendanceHistory() {
   const filtered = listAttendance.filter(a => a.tanggal === today && (!selectedKelas || a.kelas === selectedKelas));
   document.getElementById("guruTotalScanned").innerText = `${filtered.length} Siswa`;
 
-  tbody.innerHTML = filtered.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada siswa di-scan.</td></tr>` :
-    filtered.map(a => `<tr class="hover:bg-slate-50"><td class="p-2.5 font-mono text-xs">${a.jam}</td><td class="p-2.5 font-semibold text-slate-800">${a.nama}</td><td class="p-2.5">${a.kelas}</td><td class="p-2.5 text-center text-emerald-600 font-semibold">✅ Hadir</td></tr>`).join("");
+  tbody.innerHTML = filtered.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada siswa di-scan.</td></tr>` :
+    filtered.map(a => `<tr class="hover:bg-slate-50"><td class="p-3 font-mono text-xs">${a.jam}</td><td class="p-3 font-mono text-xs text-slate-500">${a.nis || '-'}</td><td class="p-3 font-semibold text-slate-800">${a.nama}</td><td class="p-3">${a.kelas}</td><td class="p-3 text-center text-emerald-600 font-semibold">✅ Hadir</td></tr>`).join("");
 }
 
 function switchAdminTab(tab) {
@@ -301,16 +301,16 @@ function renderAdminTables() {
   const today = new Date().toISOString().split('T')[0];
   const todayAtt = listAttendance.filter(a => a.tanggal === today);
 
-  attTb.innerHTML = todayAtt.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada riwayat.</td></tr>` :
-    todayAtt.map(a => `<tr class="hover:bg-slate-50"><td class="p-3 font-mono text-xs">${a.jam}</td><td class="p-3 font-semibold">${a.nama}</td><td class="p-3">${a.kelas}</td><td class="p-3 text-xs text-indigo-600">${a.scannedByName}</td></tr>`).join("");
+  attTb.innerHTML = todayAtt.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada riwayat.</td></tr>` :
+    todayAtt.map(a => `<tr class="hover:bg-slate-50"><td class="p-3 font-mono text-xs">${a.jam}</td><td class="p-3 font-mono text-xs text-slate-500">${a.nis || '-'}</td><td class="p-3 font-semibold text-slate-800">${a.nama}</td><td class="p-3">${a.kelas}</td><td class="p-3 text-xs text-indigo-600 font-semibold">${a.scannedByName}</td></tr>`).join("");
 
   const sisTb = document.getElementById("studentsTable");
   sisTb.innerHTML = listSiswa.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data siswa.</td></tr>` :
     listSiswa.map((s, idx) => `
       <tr class="hover:bg-slate-50">
+        <td class="p-3 font-mono text-xs text-slate-500">${s.nis || '-'}</td>
         <td class="p-3 font-semibold text-slate-800">${s.nama}</td>
         <td class="p-3">${s.kelas}</td>
-        <td class="p-3 font-mono text-xs text-slate-500">${s.nis || '-'}</td>
         <td class="p-3 text-xs text-slate-500">${s.noHp || '-'}</td>
         <td class="p-3 text-center space-x-1">
           <button onclick="downloadSingleQR('${s.nama}')" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-semibold">📇 QR Nama</button>
@@ -342,9 +342,9 @@ function renderAdminTables() {
 function openModalSiswa() {
   document.getElementById("siswaIndex").value = "-1";
   document.getElementById("modalSiswaTitle").innerText = "Tambah Siswa Baru";
+  document.getElementById("siswaNis").value = "";
   document.getElementById("siswaNama").value = "";
   document.getElementById("siswaKelas").value = "";
-  document.getElementById("siswaNis").value = "";
   document.getElementById("siswaNoHp").value = "";
   document.getElementById("modalSiswa").classList.remove("hidden");
 }
@@ -353,9 +353,9 @@ function editSiswa(idx) {
   const s = listSiswa[idx];
   document.getElementById("siswaIndex").value = idx;
   document.getElementById("modalSiswaTitle").innerText = "Edit Data Siswa";
+  document.getElementById("siswaNis").value = s.nis || "";
   document.getElementById("siswaNama").value = s.nama;
   document.getElementById("siswaKelas").value = s.kelas;
-  document.getElementById("siswaNis").value = s.nis || "";
   document.getElementById("siswaNoHp").value = s.noHp || "";
   document.getElementById("modalSiswa").classList.remove("hidden");
 }
@@ -365,15 +365,15 @@ function closeModalSiswa() { document.getElementById("modalSiswa").classList.add
 function saveSiswa(e) {
   e.preventDefault();
   const idx = parseInt(document.getElementById("siswaIndex").value);
+  const nis = document.getElementById("siswaNis").value.trim();
   const nama = document.getElementById("siswaNama").value.trim();
   const kelas = document.getElementById("siswaKelas").value.trim();
-  const nis = document.getElementById("siswaNis").value.trim();
   const noHp = document.getElementById("siswaNoHp").value.trim();
 
   if (!nama) return alert("⚠️ Nama siswa tidak boleh kosong!");
 
   if (idx === -1) {
-    listSiswa.push({ nama, kelas, nis, noHp });
+    listSiswa.push({ nis, nama, kelas, noHp });
   } else {
     const oldNama = listSiswa[idx].nama;
     if (oldNama !== nama) {
@@ -384,7 +384,7 @@ function saveSiswa(e) {
       });
       localStorage.setItem("DATA_ATTENDANCE", JSON.stringify(listAttendance));
     }
-    listSiswa[idx] = { nama, kelas, nis, noHp };
+    listSiswa[idx] = { nis, nama, kelas, noHp };
   }
 
   localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
@@ -464,11 +464,11 @@ function importExcel(e, type) {
     const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
     if (type === 'siswa') {
       const imported = data.map(i => {
+        const nisVal = (i.NISN || i.nisn || i.NIS || i.nis || "").toString().trim();
         const namaVal = (i.NAMA || i.Nama || i.nama || "").toString().trim();
         const kelasVal = (i.KELAS || i.Kelas || i.kelas || "").toString().trim();
-        const nisVal = (i.NISN || i.nisn || i.NIS || i.nis || "").toString().trim();
         const hpVal = (i.HP || i.hp || i.WA || i.wa || i.NO_HP || "").toString().trim();
-        return { nama: namaVal, kelas: kelasVal, nis: nisVal, noHp: hpVal };
+        return { nis: nisVal, nama: namaVal, kelas: kelasVal, noHp: hpVal };
       }).filter(x => x.nama);
       listSiswa = listSiswa.concat(imported);
       localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
@@ -488,7 +488,7 @@ function importExcel(e, type) {
 }
 
 function downloadTemplateExcel(type) {
-  const data = type === 'siswa' ? [{ NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "628123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd.", USERNAME: "budisantoso" }];
+  const data = type === 'siswa' ? [{ NIS: "12345", NAMA: "Ahmad Dahlan", KELAS: "7A", HP: "08123456789" }] : [{ NIP: "198201012010011001", NAMA: "Budi Santoso, S.Pd.", USERNAME: "budisantoso" }];
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -545,7 +545,7 @@ async function downloadQRAll() {
     doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
 
     // Header Kartu
-    doc.setFillColor(67, 56, 202);
+    doc.setFillColor(79, 70, 229);
     doc.rect(x, y, cardW, 14, "F");
     doc.setTextColor(255);
     doc.setFontSize(8);
