@@ -84,14 +84,26 @@ function switchLoginRole(role) {
   }
 }
 
+// FUNGSI LOGIN PERBAIKAN TUNTAS
 function handleLogin(e) {
   e.preventDefault();
   const role = document.getElementById("loginRole").value;
-  const usernameVal = document.getElementById("username").value.trim().toLowerCase();
+  const rawInput = document.getElementById("username").value.trim().toLowerCase();
   const passwordVal = document.getElementById("password").value;
 
+  // Helper pembersih string: potong gelar setelah koma, hapus spasi/simbol
+  const cleanStr = (str) => {
+    if (!str) return "";
+    return String(str)
+      .toLowerCase()
+      .split(',')[0]
+      .replace(/[^a-z0-9]/g, '');
+  };
+
+  const cleanInput = cleanStr(rawInput);
+
   if (role === 'admin') {
-    if (usernameVal === 'admin' && passwordVal === 'admin') {
+    if (rawInput === 'admin' && passwordVal === 'admin') {
       currentUser = { role: 'admin', name: 'Administrator', identifier: 'admin' };
       localStorage.setItem("CURRENT_USER", JSON.stringify(currentUser));
       showAppView();
@@ -100,16 +112,20 @@ function handleLogin(e) {
       alert("❌ Username atau Password Admin salah!");
     }
   } else {
-    // Cari Guru berdasarkan NIP, Username Custom, atau Default Username dari Nama
+    // Cari guru fleksibel (NIP, Username, atau Nama tanpa Gelar)
     const foundGuru = listGuru.find(g => {
-      const nipMatch = g.nip && g.nip.trim().toLowerCase() === usernameVal;
-      const userMatch = g.username && g.username.trim().toLowerCase() === usernameVal;
-      const defaultUser = g.nama.toLowerCase().replace(/\s+/g, '');
-      return nipMatch || userMatch || defaultUser === usernameVal;
+      const nipMatch = g.nip && String(g.nip).trim().toLowerCase() === rawInput;
+      const userMatch = g.username && cleanStr(g.username) === cleanInput;
+      const namaMatch = cleanStr(g.nama) === cleanInput;
+      return nipMatch || userMatch || namaMatch;
     });
 
     if (foundGuru) {
-      currentUser = { role: 'guru', name: foundGuru.nama, identifier: foundGuru.username || foundGuru.nip || usernameVal };
+      currentUser = { 
+        role: 'guru', 
+        name: foundGuru.nama, 
+        identifier: foundGuru.username || foundGuru.nip || rawInput 
+      };
       localStorage.setItem("CURRENT_USER", JSON.stringify(currentUser));
       showAppView();
       bicara(`Selamat datang ${foundGuru.nama}`);
@@ -156,7 +172,6 @@ function showAppView() {
   }
 }
 
-// Helper pembersih format nama
 function cleanNama(nama) {
   if (!nama) return "";
   return String(nama).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -216,7 +231,6 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  // Cari Siswa Murni berdasarkan NAMA LENGKAP
   const siswa = listSiswa.find(s => cleanNama(s.nama) === cleanScannedNama);
 
   if (!siswa) {
@@ -400,7 +414,7 @@ function deleteSiswa(idx) {
   }
 }
 
-// MODAL & SAVE GURU (DENGAN USERNAME)
+// MODAL & SAVE GURU
 function openModalGuru() {
   document.getElementById("guruIndex").value = "-1";
   document.getElementById("modalGuruTitle").innerText = "Tambah Guru Baru";
@@ -518,14 +532,13 @@ async function downloadSingleQR(nama) {
   link.click();
 }
 
-// CETAK KARTU PDF A3 MODE PORTRAIT (BENTUK KARTU TEGAK & ISI QR NAMA)
 async function downloadQRAll() {
   if (listSiswa.length === 0) return alert("Tidak ada data siswa!");
   const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a3" });
   
-  const cardW = 54, cardH = 86; // Dimensi Kartu Tegak/Portrait
+  const cardW = 54, cardH = 86;
   const startX = 15, startY = 15;
   const gapX = 10, gapY = 10;
   const cols = 4, rows = 4;
@@ -540,11 +553,9 @@ async function downloadQRAll() {
     const x = startX + col * (cardW + gapX);
     const y = startY + row * (cardH + gapY);
 
-    // Frame Kartu
     doc.setDrawColor(200);
     doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
 
-    // Header Kartu
     doc.setFillColor(79, 70, 229);
     doc.rect(x, y, cardW, 14, "F");
     doc.setTextColor(255);
@@ -553,7 +564,6 @@ async function downloadQRAll() {
     doc.text("KARTU PRESENSI", x + cardW / 2, y + 6, { align: "center" });
     doc.text("SISWA", x + cardW / 2, y + 11, { align: "center" });
 
-    // QR Code Murni Nama Lengkap
     const qrUrl = await generateQRCanvas(listSiswa[i].nama);
     if (qrUrl) {
       const qrSize = 36;
@@ -561,7 +571,6 @@ async function downloadQRAll() {
       doc.addImage(qrUrl, "PNG", qrX, y + 18, qrSize, qrSize);
     }
 
-    // Detail Siswa
     doc.setTextColor(30);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
