@@ -155,9 +155,12 @@ function showAppView() {
 }
 
 function cleanNIS(nis) {
-  if (!nis) return "";
-  // Hanya menghapus spasi tanpa memotong angka 0 di depan
-  return nis.toString().trim().replace(/\s+/g, '');
+  if (nis === null || nis === undefined) return "";
+  // Konversi ke string, buang semua spasi, newlines, tab, dan karakter tersembunyi
+  return String(nis)
+    .replace(/[\r\n\t]/g, '') // Hapus enter/tab
+    .replace(/\s+/g, '')       // Hapus semua spasi
+    .trim();
 }
 
 // ================= KAMERA SCANNER LIVE =================
@@ -209,14 +212,14 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  const siswa = listSiswa.find(s => cleanNIS(s.nis) === qrClean);
+// Bersihkan teks dari QR Code
+const qrClean = cleanNIS(decodedText);
 
-  if (!siswa) {
-    bicara("Siswa tidak ditemukan");
-    alert(`❌ Siswa dengan ID/NIS '${decodedText}' tidak ditemukan!`);
-    setTimeout(() => { isProcessingScan = false; }, 2000);
-    return;
-  }
+// Cari siswa dengan mencocokkan nis, NIS, atau ID secara fleksibel
+const siswa = listSiswa.find(s => {
+  const nisSiswa = cleanNIS(s.nis || s.NIS || s.id || "");
+  return nisSiswa === qrClean;
+});
 
   const now = new Date();
   const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
