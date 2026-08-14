@@ -3,374 +3,323 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Presensi Siswa - Dashboard App</title>
+  <title>PresensiSiswa App</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Library QR Code & Print PDF -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- Library SheetJS (Excel) -->
+  <!-- SheetJS untuk Export/Import Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- QRCode.js untuk Generate QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsPDF untuk Download PDF Kartu -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- HTML5 QR Code Scanner Library (Kamera Live) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
-  <!-- Container Rahasia untuk Render QR versi PDF -->
-  <div id="qrPrintContainer" class="hidden"></div>
+  <!-- TOP NAVBAR -->
+  <header class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">PresensiSiswa App</h1>
+        <p id="userInfo" class="text-xs text-indigo-200 mt-0.5">Silakan login</p>
+      </div>
+      <button id="logoutBtn" onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition">
+        Keluar
+      </button>
+    </div>
+  </header>
 
-  <!-- ================= SECTION LOGIN ================= -->
-  <div id="loginSection" class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
+  <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+    <!-- ================= SECTION 1: LOGIN ================= -->
+    <section id="loginSection" class="max-w-md mx-auto my-12 bg-white rounded-2xl shadow-xl p-6 border border-slate-100">
       <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-slate-900">Presensi Siswa App</h1>
-        <p class="text-sm text-slate-500 mt-1">Masuk sebagai Admin atau Guru</p>
+        <h2 class="text-2xl font-black text-slate-800">Masuk Aplikasi</h2>
+        <p class="text-xs text-slate-500 mt-1">Pilih peran Anda untuk melanjutkan</p>
       </div>
 
-      <div class="flex border-b border-slate-200 mb-6 gap-2">
-        <button type="button" id="loginRoleGuruBtn" onclick="switchLoginRole('guru')" class="w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600">
-          👨‍🏫 Masuk Guru (Tanpa Password)
+      <!-- Tab Switcher Role -->
+      <div class="flex border-b border-slate-200 mb-6">
+        <button id="loginRoleGuruBtn" type="button" onclick="switchLoginRole('guru')" class="w-1/2 py-2 text-xs font-bold border-b-2 border-indigo-600 text-indigo-600">
+          👨‍🏫 Akses Guru
         </button>
-        <button type="button" id="loginRoleAdminBtn" onclick="switchLoginRole('admin')" class="w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600">
-          🔑 Masuk Admin
+        <button id="loginRoleAdminBtn" type="button" onclick="switchLoginRole('admin')" class="w-1/2 py-2 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600">
+          🛠️ Akses Admin
         </button>
       </div>
 
-      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+      <form onsubmit="handleLogin(event)" class="space-y-4">
         <input type="hidden" id="loginRole" value="guru">
         
         <div>
-          <label id="usernameLabel" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-            NIP / Nama Lengkap (Huruf Kecil Tanpa Spasi)
-          </label>
-          <input type="text" id="username" required class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="contoh: 19820101... atau budisantoso">
+          <label id="usernameLabel" class="block text-xs font-bold text-slate-600 mb-1">NIP / Nama Lengkap (Huruf Kecil Tanpa Spasi)</label>
+          <input type="text" id="username" placeholder="contoh: 19820101... atau budisantoso" required class="w-full px-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
 
         <div id="passwordGroup" class="hidden">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Password Admin</label>
-          <input type="password" id="password" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="••••••••">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Password Admin</label>
+          <input type="password" id="password" placeholder="••••••••" class="w-full px-4 py-2.5 text-sm border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
 
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition">
-          Masuk Presensi
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 text-sm transition">
+          Masuk Sekarang
         </button>
       </form>
-    </div>
-  </div>
+    </section>
 
-  <!-- ================= SECTION MAIN DASHBOARD ================= -->
-  <div id="appSection" class="hidden min-h-screen flex flex-col">
-    <header class="bg-indigo-700 text-white shadow-md">
-      <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-        <div>
-          <h1 class="text-xl font-bold">PresensiSiswa App</h1>
-          <p class="text-xs text-indigo-200" id="userInfo">Logged in as: User</p>
-        </div>
-        <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 px-4 py-1.5 text-sm font-medium rounded-lg shadow transition">
-          Keluar
-        </button>
-      </div>
-    </header>
-
-    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+    <!-- ================= SECTION 2: APP UTAMA ================= -->
+    <section id="appSection" class="hidden space-y-6">
 
       <!-- ================= DASHBOARD GURU ================= -->
       <div id="guruView" class="hidden space-y-6">
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 class="text-base font-bold text-slate-900">📌 Pilih Kelas Presensi Hari Ini</h2>
-            <p class="text-xs text-slate-500">Pilih kelas yang sedang Anda ajar sebelum melakukan scan</p>
+            <h2 class="text-xl font-bold text-slate-800">Terminal Scan Presensi Guru</h2>
+            <p class="text-sm text-slate-500">Selamat bertugas, <span id="guruNameLabel" class="font-bold text-indigo-600"></span></p>
           </div>
-          <select id="guruSelectKelas" onchange="loadGuruAttendanceHistory()" class="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm font-bold rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">-- Pilih Kelas --</option>
-            <option value="7A">Kelas 7A</option>
-            <option value="7B">Kelas 7B</option>
-            <option value="8A">Kelas 8A</option>
-            <option value="9A">Kelas 9A</option>
-          </select>
+          <div class="w-full md:w-auto">
+            <label class="block text-xs font-bold text-slate-600 mb-1">Pilih Kelas Mengajar:</label>
+            <select id="guruSelectKelas" onchange="loadGuruAttendanceHistory()" class="w-full md:w-48 px-3 py-2 text-sm border rounded-xl font-bold text-indigo-700 bg-indigo-50 focus:ring-2 focus:ring-indigo-500">
+              <option value="">-- Semua Kelas --</option>
+              <option value="7A">Kelas 7A</option>
+              <option value="7B">Kelas 7B</option>
+              <option value="8A">Kelas 8A</option>
+              <option value="8B">Kelas 8B</option>
+              <option value="9A">Kelas 9A</option>
+              <option value="9B">Kelas 9B</option>
+            </select>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-            <h3 class="text-base font-bold text-slate-900 flex items-center justify-between">
-              <span>📷 Kamera Scan QR Presensi</span>
-              <button type="button" id="toggleCameraBtnGuru" onclick="toggleCameraGuru()" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-200 transition">
-                Buka Kamera
-              </button>
-            </h3>
-
-            <div id="readerGuru" class="hidden overflow-hidden rounded-xl border-2 border-indigo-500 bg-slate-900"></div>
-
-            <form id="guruScanForm" onsubmit="handleGuruScan(event)" class="space-y-3">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">QR Data / Input NIS</label>
-                <input type="text" id="guruQrInput" placeholder="Scan QR atau Ketik NIS Siswa..." autofocus required class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono text-sm">
-              </div>
-              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg shadow transition">
-                Proses Presensi Siswa
-              </button>
-            </form>
+        <!-- CAMERA SCANNER GURU -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <h3 class="text-sm font-bold text-slate-700 mb-3">📷 Kamera Scan QR Code Siswa:</h3>
+          <div class="max-w-md mx-auto overflow-hidden rounded-xl border-2 border-indigo-200 bg-slate-900">
+            <div id="reader-guru" class="w-full"></div>
           </div>
+          <p class="text-center text-xs text-slate-400 mt-2">Arahkan Kartu QR Siswa ke area kamera di atas</p>
+        </div>
 
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-              <div>
-                <h3 class="text-base font-bold text-slate-900">✅ Siswa Berhasil Diabsen</h3>
-                <p class="text-xs text-slate-500">Diabsen oleh Anda (<span id="guruNameLabel" class="font-semibold text-indigo-600">Guru</span>)</p>
-              </div>
-              <span id="guruTotalScanned" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">0 Siswa</span>
-            </div>
-
-            <div class="overflow-x-auto flex-1">
-              <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
-                    <th class="p-2.5">Jam</th>
-                    <th class="p-2.5">NIS</th>
-                    <th class="p-2.5">Nama Siswa</th>
-                    <th class="p-2.5">Kelas</th>
-                    <th class="p-2.5 text-center">Status Guru</th>
-                  </tr>
-                </thead>
-                <tbody id="guruAttendanceTable" class="divide-y divide-slate-100">
-                  <tr><td colspan="5" class="p-4 text-center text-slate-400">Pilih kelas & scan siswa untuk memulai.</td></tr>
-                </tbody>
-              </table>
-            </div>
+        <!-- Tabel Presensi Guru -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800">Riwayat Presensi Hari Ini</h3>
+            <span id="guruTotalScanned" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">0 Siswa</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-slate-500 font-bold text-xs uppercase">
+                <tr>
+                  <th class="p-3">Jam</th>
+                  <th class="p-3">NIS</th>
+                  <th class="p-3">Nama Siswa</th>
+                  <th class="p-3">Kelas</th>
+                  <th class="p-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="guruAttendanceTable" class="divide-y divide-slate-100"></tbody>
+            </table>
           </div>
         </div>
       </div>
 
       <!-- ================= DASHBOARD ADMIN ================= -->
       <div id="adminView" class="hidden space-y-6">
-        <div class="flex border-b border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-2">
+        
+        <!-- Navigation Tabs Admin -->
+        <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-2">
           <button id="tabScanBtn" onclick="switchAdminTab('scan')" class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg bg-indigo-600 text-white transition">
-            📷 Terminal Scan Utama
+            📺 Terminal Scan Utama
           </button>
           <button id="tabSiswaBtn" onclick="switchAdminTab('siswa')" class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition">
             👨‍🎓 Master Data Siswa
           </button>
           <button id="tabGuruBtn" onclick="switchAdminTab('guru')" class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition">
-            👨‍🏫 Master Data Guru
+            👩‍🏫 Master Data Guru
+          </button>
+          <button id="tabWaBtn" onclick="switchAdminTab('wa')" class="tab-btn px-5 py-2.5 text-sm font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition">
+            💬 WhatsApp Gateway
           </button>
         </div>
 
-        <!-- TAB ADMIN 1: TERMINAL SCAN -->
-        <div id="adminTabScan" class="tab-content grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit space-y-4">
-            <h2 class="text-lg font-bold text-slate-900 flex items-center justify-between">
-              <span>📷 Scan Presensi QR Admin</span>
-              <button type="button" id="toggleCameraBtnAdmin" onclick="toggleCameraAdmin()" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg font-semibold transition">
-                Buka Kamera
-              </button>
-            </h2>
-
-            <div id="readerAdmin" class="hidden overflow-hidden rounded-xl border-2 border-indigo-500 bg-slate-900"></div>
-
-            <form id="adminScanForm" onsubmit="handleAdminScan(event)" class="space-y-4">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">QR Code / NIS</label>
-                <input type="text" id="adminQrInput" placeholder="Contoh: 1001" autofocus required class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono text-sm">
-              </div>
-              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg shadow transition">
-                Proses Scan Presensi
-              </button>
-            </form>
+        <!-- TAB 1: SCANNER ADMIN (CAMERA LIVE) -->
+        <div id="adminTabScan" class="tab-content space-y-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 class="text-sm font-bold text-slate-700 mb-3">📷 Kamera Scan QR Code Siswa (Admin Terminal):</h3>
+            <div class="max-w-md mx-auto overflow-hidden rounded-xl border-2 border-indigo-200 bg-slate-900">
+              <div id="reader-admin" class="w-full"></div>
+            </div>
+            <p class="text-center text-xs text-slate-400 mt-2">Arahkan Kartu QR Siswa ke area kamera di atas</p>
           </div>
 
-          <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <h2 class="text-lg font-bold text-slate-900 mb-4">Riwayat Presensi Semua Siswa Hari Ini</h2>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 font-bold text-slate-800">
+              Riwayat Presensi Keseluruhan Hari Ini
+            </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 font-bold text-xs uppercase">
+                  <tr>
                     <th class="p-3">Jam</th>
                     <th class="p-3">NIS</th>
                     <th class="p-3">Nama Siswa</th>
                     <th class="p-3">Kelas</th>
-                    <th class="p-3">Petugas/Guru Scanned</th>
+                    <th class="p-3">Petugas Scan</th>
                   </tr>
                 </thead>
-                <tbody id="adminAttendanceTable" class="divide-y divide-slate-100">
-                  <tr><td colspan="5" class="p-4 text-center text-slate-400">Memuat data...</td></tr>
-                </tbody>
+                <tbody id="adminAttendanceTable" class="divide-y divide-slate-100"></tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- TAB ADMIN 2: MASTER SISWA -->
-        <div id="adminTabSiswa" class="tab-content hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+        <!-- TAB 2: MASTER DATA SISWA -->
+        <div id="adminTabSiswa" class="tab-content hidden space-y-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-3 justify-between items-center">
             <div>
-              <h2 class="text-xl font-bold text-slate-900">👨‍🎓 Master Data Siswa</h2>
-              <p class="text-xs text-slate-500">Kelola data siswa & cetak QR tagname</p>
+              <h3 class="font-bold text-slate-800">Master Data Siswa</h3>
+              <p class="text-xs text-slate-500">Kelola daftar siswa & kartu presensi QR</p>
             </div>
             <div class="flex flex-wrap gap-2">
-              <button onclick="downloadTemplateExcel('siswa')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300">📥 Template Siswa</button>
-              <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow cursor-pointer">
+              <button onclick="downloadTemplateExcel('siswa')" class="bg-slate-100 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs hover:bg-slate-200">📥 Template</button>
+              <label class="bg-emerald-600 text-white font-semibold px-3 py-2 rounded-xl text-xs hover:bg-emerald-700 cursor-pointer">
                 📤 Import Excel
-                <input type="file" accept=".xlsx, .xls, .csv" onchange="importExcel(event, 'siswa')" class="hidden">
+                <input type="file" accept=".xlsx, .xls" onchange="importExcel(event, 'siswa')" class="hidden">
               </label>
-              <button onclick="openModalSiswa()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow">➕ Tambah Siswa</button>
-              <button onclick="downloadQRAll()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow">📇 Cetak QR (A3)</button>
+              <button onclick="downloadQRAll()" class="bg-purple-600 text-white font-semibold px-3 py-2 rounded-xl text-xs hover:bg-purple-700">🖨️ Cetak Kartu A3 (Portrait)</button>
+              <button onclick="openModalSiswa()" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-xl text-xs hover:bg-indigo-700">+ Tambah Siswa</button>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
-                  <th class="p-3">NIS</th>
-                  <th class="p-3">Nama Siswa</th>
-                  <th class="p-3">Kelas</th>
-                  <th class="p-3">No. HP Ortua</th>
-                  <th class="p-3 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="studentsTable" class="divide-y divide-slate-100">
-                <tr><td colspan="5" class="p-4 text-center text-slate-400">Memuat data siswa...</td></tr>
-              </tbody>
-            </table>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 font-bold text-xs uppercase">
+                  <tr>
+                    <th class="p-3">NIS</th>
+                    <th class="p-3">Nama Lengkap</th>
+                    <th class="p-3">Kelas</th>
+                    <th class="p-3">No. HP Orang Tua</th>
+                    <th class="p-3 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTable" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <!-- TAB ADMIN 3: MASTER GURU -->
-        <div id="adminTabGuru" class="tab-content hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+        <!-- TAB 3: MASTER DATA GURU -->
+        <div id="adminTabGuru" class="tab-content hidden space-y-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap gap-3 justify-between items-center">
             <div>
-              <h2 class="text-xl font-bold text-slate-900">👨‍🏫 Master Data Guru</h2>
-              <p class="text-xs text-slate-500">Kelola daftar guru untuk login tanpa password (NIP/Nama)</p>
+              <h3 class="font-bold text-slate-800">Master Data Guru</h3>
+              <p class="text-xs text-slate-500">Kelola akun guru untuk login sistem</p>
             </div>
             <div class="flex flex-wrap gap-2">
-              <button onclick="downloadTemplateExcel('guru')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300">📥 Template Guru</button>
-              <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow cursor-pointer">
+              <button onclick="downloadTemplateExcel('guru')" class="bg-slate-100 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs hover:bg-slate-200">📥 Template</button>
+              <label class="bg-emerald-600 text-white font-semibold px-3 py-2 rounded-xl text-xs hover:bg-emerald-700 cursor-pointer">
                 📤 Import Excel
-                <input type="file" accept=".xlsx, .xls, .csv" onchange="importExcel(event, 'guru')" class="hidden">
+                <input type="file" accept=".xlsx, .xls" onchange="importExcel(event, 'guru')" class="hidden">
               </label>
-              <button onclick="openModalGuru()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow">➕ Tambah Guru</button>
+              <button onclick="openModalGuru()" class="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-xl text-xs hover:bg-indigo-700">+ Tambah Guru</button>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
-                  <th class="p-3">NIP / ID</th>
-                  <th class="p-3">Nama Lengkap</th>
-                  <th class="p-3">Username Login (Non-ASN)</th>
-                  <th class="p-3 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="teachersTable" class="divide-y divide-slate-100">
-                <tr><td colspan="4" class="p-4 text-center text-slate-400">Memuat data guru...</td></tr>
-              </tbody>
-            </table>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-slate-500 font-bold text-xs uppercase">
+                  <tr>
+                    <th class="p-3">NIP / ID</th>
+                    <th class="p-3">Nama Lengkap</th>
+                    <th class="p-3">Username Login</th>
+                    <th class="p-3 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="teachersTable" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: WHATSAPP GATEWAY (TOKEN FONNTE) -->
+        <div id="adminTabWa" class="tab-content hidden space-y-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">⚙️ Pengaturan WhatsApp Gateway (Fonnte)</h3>
+            <p class="text-sm text-slate-500 mb-4">Masukkan API Token Fonnte agar pesan presensi dapat terkirim otomatis di latar belakang.</p>
+            
+            <div class="max-w-md space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">API Token Fonnte</label>
+                <input type="text" id="fonnteTokenInput" placeholder="Paste Token Fonnte Di Sini..." class="w-full px-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono">
+              </div>
+              <button onclick="simpanFonnteToken()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition">
+                💾 Simpan Token
+              </button>
+            </div>
           </div>
         </div>
 
       </div>
 
-    </main>
-  </div>
+    </section>
+  </main>
 
   <!-- MODAL SISWA -->
-  <div id="modalSiswa" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-      <h3 id="modalSiswaTitle" class="text-lg font-bold text-slate-900">Tambah Data Siswa</h3>
-      <form id="siswaForm" onsubmit="saveSiswa(event)" class="space-y-3">
-        <input type="hidden" id="siswaId">
+  <div id="modalSiswa" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 space-y-4">
+      <h3 id="modalSiswaTitle" class="font-bold text-lg text-slate-800">Tambah Siswa Baru</h3>
+      <form onsubmit="saveSiswa(event)" class="space-y-3">
+        <input type="hidden" id="siswaIndex" value="-1">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">NIS / ID Siswa</label>
-          <input type="text" id="siswaNis" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">NIS</label>
+          <input type="text" id="siswaNis" required class="w-full px-3 py-2 border rounded-lg text-sm font-mono">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap</label>
-          <input type="text" id="siswaNama" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Lengkap</label>
+          <input type="text" id="siswaNama" required class="w-full px-3 py-2 border rounded-lg text-sm">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Kelas</label>
-          <input type="text" id="siswaKelas" placeholder="Contoh: 7A" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Kelas</label>
+          <input type="text" id="siswaKelas" placeholder="contoh: 7A" required class="w-full px-3 py-2 border rounded-lg text-sm">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">No. WhatsApp Ortu</label>
-          <input type="text" id="siswaNoHp" placeholder="628123456789" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">No. HP Orang Tua (WA)</label>
+          <input type="text" id="siswaNoHp" placeholder="contoh: 08123456789" class="w-full px-3 py-2 border rounded-lg text-sm">
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="closeModalSiswa()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
-          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow">Simpan</button>
+          <button type="button" onclick="closeModalSiswa()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Simpan</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL GURU -->
-  <div id="modalGuru" class="hidden fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-      <h3 id="modalGuruTitle" class="text-lg font-bold text-slate-900">Tambah Data Guru</h3>
-      <form id="guruForm" onsubmit="saveGuru(event)" class="space-y-3">
-        <input type="hidden" id="guruId">
+  <div id="modalGuru" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 space-y-4">
+      <h3 id="modalGuruTitle" class="font-bold text-lg text-slate-800">Tambah Guru Baru</h3>
+      <form onsubmit="saveGuru(event)" class="space-y-3">
+        <input type="hidden" id="guruIndex" value="-1">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">NIP (Opsional untuk Non-ASN)</label>
-          <input type="text" id="guruNip" placeholder="Contoh: 19820101..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">NIP (Opsional)</label>
+          <input type="text" id="guruNip" placeholder="Kosongkan jika Non-ASN" class="w-full px-3 py-2 border rounded-lg text-sm font-mono">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap Guru</label>
-          <input type="text" id="guruNama" required placeholder="Contoh: Budi Santoso, S.Pd." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Lengkap & Gelar</label>
+          <input type="text" id="guruNama" required class="w-full px-3 py-2 border rounded-lg text-sm">
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="closeModalGuru()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
-          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow">Simpan</button>
+          <button type="button" onclick="closeModalGuru()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Simpan</button>
         </div>
       </form>
     </div>
   </div>
 
-  <script src="/js/app.js"></script>
-
-  <script>
-    let qrGuru = null, qrAdmin = null;
-    let camGuruActive = false, camAdminActive = false;
-
-    async function toggleCameraGuru() {
-      const elem = document.getElementById("readerGuru");
-      const btn = document.getElementById("toggleCameraBtnGuru");
-      if (camGuruActive) {
-        if (qrGuru) await qrGuru.stop();
-        elem.classList.add("hidden");
-        btn.innerText = "Buka Kamera";
-        camGuruActive = false;
-      } else {
-        elem.classList.remove("hidden");
-        btn.innerText = "Tutup Kamera";
-        if (!qrGuru) qrGuru = new Html5Qrcode("readerGuru");
-        qrGuru.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
-          document.getElementById("guruQrInput").value = text;
-          document.getElementById("guruScanForm").dispatchEvent(new Event("submit"));
-        }).catch(err => alert("Kamera error/ditolak."));
-        camGuruActive = true;
-      }
-    }
-
-    async function toggleCameraAdmin() {
-      const elem = document.getElementById("readerAdmin");
-      const btn = document.getElementById("toggleCameraBtnAdmin");
-      if (camAdminActive) {
-        if (qrAdmin) await qrAdmin.stop();
-        elem.classList.add("hidden");
-        btn.innerText = "Buka Kamera";
-        camAdminActive = false;
-      } else {
-        elem.classList.remove("hidden");
-        btn.innerText = "Tutup Kamera";
-        if (!qrAdmin) qrAdmin = new Html5Qrcode("readerAdmin");
-        qrAdmin.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (text) => {
-          document.getElementById("adminQrInput").value = text;
-          document.getElementById("adminScanForm").dispatchEvent(new Event("submit"));
-        }).catch(err => alert("Kamera error/ditolak."));
-        camAdminActive = true;
-      }
-    }
-  </script>
+  <!-- Script Aplikasi Utama -->
+  <script src="js/app.js"></script>
 </body>
 </html>
