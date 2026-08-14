@@ -154,7 +154,7 @@ function showAppView() {
   }
 }
 
-// Normalisasi Nama Siswa
+// Normalisasi Nama (Menyamakan Spasi & Huruf Besar/Kecil)
 function cleanNama(nama) {
   if (!nama) return "";
   return String(nama).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -214,7 +214,7 @@ function processScannedQR(decodedText, scannedByRole) {
     }
   }
 
-  // Cari siswa berdasarkan NAMA LENGKAP
+  // Cari siswa MURNI hanya berdasarkan NAMA LENGKAP (NISN diabaikan)
   const siswa = listSiswa.find(s => cleanNama(s.nama) === cleanScannedNama);
 
   if (!siswa) {
@@ -333,7 +333,7 @@ function renderAdminTables() {
     `).join("");
 }
 
-// EDIT & MODAL SISWA
+// EDIT & MODAL SISWA (OTOMATIS UPDATE QR KETIKA SISWA DIEDIT)
 function openModalSiswa() {
   document.getElementById("siswaIndex").value = "-1";
   document.getElementById("modalSiswaTitle").innerText = "Tambah Siswa Baru";
@@ -365,11 +365,23 @@ function saveSiswa(e) {
   const nis = document.getElementById("siswaNis").value.trim();
   const noHp = document.getElementById("siswaNoHp").value.trim();
 
+  if (!nama) return alert("⚠️ Nama siswa tidak boleh kosong!");
+
   if (idx === -1) {
     listSiswa.push({ nama, kelas, nis, noHp });
   } else {
+    const oldNama = listSiswa[idx].nama;
+    if (oldNama !== nama) {
+      listAttendance.forEach(a => {
+        if (cleanNama(a.nama) === cleanNama(oldNama)) {
+          a.nama = nama;
+        }
+      });
+      localStorage.setItem("DATA_ATTENDANCE", JSON.stringify(listAttendance));
+    }
     listSiswa[idx] = { nama, kelas, nis, noHp };
   }
+
   localStorage.setItem("DATA_SISWA", JSON.stringify(listSiswa));
   closeModalSiswa();
   renderAdminTables();
@@ -427,7 +439,7 @@ function deleteGuru(idx) {
   }
 }
 
-// EXCEL IMPORT & QR CODE
+// EXCEL IMPORT & GENERATE QR CODE
 function importExcel(e, type) {
   const file = e.target.files[0];
   if (!file) return;
@@ -486,17 +498,17 @@ async function downloadSingleQR(nama) {
   link.click();
 }
 
-// CETAK KARTU PDF A3 MODE PORTRAIT (BERBASIS NAMA)
+// CETAK KARTU PDF A3 MODE PORTRAIT (BENTUK KARTU TEGAK & ISI QR NAMA)
 async function downloadQRAll() {
   if (listSiswa.length === 0) return alert("Tidak ada data siswa!");
   const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a3" });
   
-  const cardW = 85.6, cardH = 53.9;
-  const startX = 12, startY = 15;
-  const gapX = 8, gapY = 8;
-  const cols = 3, rows = 7;
+  const cardW = 54, cardH = 86; // Dimensi Kartu Tegak/Portrait
+  const startX = 15, startY = 15;
+  const gapX = 10, gapY = 10;
+  const cols = 4, rows = 4;
   let col = 0, row = 0;
 
   for (let i = 0; i < listSiswa.length; i++) {
@@ -508,31 +520,36 @@ async function downloadQRAll() {
     const x = startX + col * (cardW + gapX);
     const y = startY + row * (cardH + gapY);
 
-    // Card Border
+    // Frame Kartu
     doc.setDrawColor(200);
     doc.roundedRect(x, y, cardW, cardH, 3, 3, "S");
 
     // Header Kartu
     doc.setFillColor(67, 56, 202);
-    doc.rect(x, y, cardW, 12, "F");
+    doc.rect(x, y, cardW, 14, "F");
     doc.setTextColor(255);
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("KARTU PRESENSI SISWA", x + cardW / 2, y + 8, { align: "center" });
+    doc.text("KARTU PRESENSI", x + cardW / 2, y + 6, { align: "center" });
+    doc.text("SISWA", x + cardW / 2, y + 11, { align: "center" });
 
-    // isi QR Code berupa NAMA LENGKAP siswa
+    // QR Code Murni Nama Lengkap
     const qrUrl = await generateQRCanvas(listSiswa[i].nama);
-    if (qrUrl) doc.addImage(qrUrl, "PNG", x + 5, y + 16, 32, 32);
+    if (qrUrl) {
+      const qrSize = 36;
+      const qrX = x + (cardW - qrSize) / 2;
+      doc.addImage(qrUrl, "PNG", qrX, y + 18, qrSize, qrSize);
+    }
 
-    // Detail Informasi Siswa
+    // Detail Siswa
     doc.setTextColor(30);
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(listSiswa[i].nama, x + 40, y + 24, { maxWidth: 42 });
+    doc.text(listSiswa[i].nama, x + cardW / 2, y + 60, { align: "center", maxWidth: 48 });
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`Kelas : ${listSiswa[i].kelas}`, x + 40, y + 36);
+    doc.text(`Kelas : ${listSiswa[i].kelas}`, x + cardW / 2, y + 70, { align: "center" });
 
     col++;
     if (col >= cols) {
@@ -541,5 +558,5 @@ async function downloadQRAll() {
     }
   }
 
-  doc.save("Kartu_Presensi_Siswa_A3_Portrait.pdf");
+  doc.save("Kartu_Presensi_Siswa_Portrait.pdf");
 }
